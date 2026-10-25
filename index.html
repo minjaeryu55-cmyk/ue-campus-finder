@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UE Campus Finder</title>
+<style>
+:root{--bg:#f6f5f0;--card:#fff;--tx:#1f2a2e;--mu:#6b777b;--ac:#2f5d62;--ac2:#e6efef;--bd:#dcdad0;--ok:#2e7d4f;--wa:#b26a00;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14191b;--card:#1d2427;--tx:#e9eeee;--mu:#92a0a4;--ac:#7fb8bd;--ac2:#243a3d;--bd:#2f3a3d;--ok:#6cc08b;--wa:#e0a64a;color-scheme:dark}}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.45}
+#app{max-width:480px;margin:0 auto;padding:16px 16px 90px}
+h1{font-size:22px;margin:4px 0 2px}h2{font-size:18px;margin:8px 0}.mu{color:var(--mu);font-size:13px}
+.wf{float:right;font-size:11px;color:var(--mu);border:1px dashed var(--bd);border-radius:6px;padding:2px 6px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:10px 0}
+.btn{display:block;width:100%;padding:13px;border-radius:12px;border:0;background:var(--ac);color:var(--bg);font-size:16px;font-weight:600;cursor:pointer;margin-top:10px}
+.btn.s{background:var(--ac2);color:var(--ac)}
+input,select{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font:inherit;margin:6px 0}
+label{font-size:13px;font-weight:600;display:block;margin-top:8px}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.chip{padding:7px 12px;border-radius:99px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-size:14px;cursor:pointer}
+.chip.on{background:var(--ac);color:var(--bg);border-color:var(--ac)}
+.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--ac2);color:var(--ac);font-weight:600}
+.tag.w{color:var(--wa)}.tag.o{color:var(--ok)}
+.item{display:flex;gap:12px;cursor:pointer}
+.th{width:60px;height:60px;border-radius:10px;background:var(--ac2);display:grid;place-items:center;font-size:28px;flex:none;overflow:hidden}
+.th img{width:100%;height:100%;object-fit:cover}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--bd);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px)}
+nav div{display:flex;max-width:480px;width:100%}
+nav button{flex:1;padding:10px 4px;border:0;background:none;color:var(--mu);font:inherit;font-size:12px;cursor:pointer}
+nav button.on{color:var(--ac);font-weight:700}nav span{display:block;font-size:20px}
+.map{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.zone{padding:18px 8px;border-radius:12px;border:2px dashed var(--bd);text-align:center;cursor:pointer;background:var(--card);color:var(--tx);font:inherit}
+.zone.on{border-color:var(--ac);background:var(--ac2)}.zone b{display:block;font-size:20px}
+.back{background:none;border:0;color:var(--ac);font:inherit;cursor:pointer;padding:4px 0}
+.toast{background:var(--ac2);color:var(--ac);border-radius:12px;padding:12px;margin:10px 0;font-weight:600}
+.bigimg{width:100%;height:160px;border-radius:12px;background:var(--ac2);display:grid;place-items:center;font-size:56px;overflow:hidden}.bigimg img{width:100%;height:100%;object-fit:cover}
+.lk{background:none;border:0;color:var(--mu);font:inherit;font-size:12px;text-decoration:underline;cursor:pointer;margin-top:16px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<nav><div id="nav"></div></nav>
+<script>
+const ZONES=[["Library","📚"],["Lecture Hall A","🏫"],["Cafeteria","☕"],["Sports Hall","⚽"],["Dorm","🏠"],["Central Office","🏢"]];
+const CATS=[["Wallet/Cards","👛"],["Electronics","🎧"],["Keys","🔑"],["Bags/Clothing","🎒"],["Bottles/Other","🧴"]];
+const NOMEM="Don’t remember",KEY="uecf-v2";
+const icon=c=>(CATS.find(x=>x[0]==c)||[0,"📦"])[1];
+const SEED=[
+{id:1,name:"Black leather wallet",cat:"Wallet/Cards",zone:"Lecture Hall A",keep:"UE Central Lost & Found",days:20,date:"Today",q:"Which department is on the student ID inside?",a:"computer"},
+{id:2,name:"White wireless earbuds",cat:"Electronics",zone:"Library",keep:"Library Desk",days:12,date:"Yesterday",q:"What colour is the sticker on the case?",a:"blue"},
+{id:3,name:"House keys (bear keyring)",cat:"Keys",zone:"Cafeteria",keep:"Cafeteria Counter",days:6,date:"Today",q:"Which animal is the keyring?",a:"bear"},
+{id:4,name:"Steel tumbler (grey)",cat:"Bottles/Other",zone:"Library",keep:"Library Desk",days:13,date:"Today",q:"What colour is the lid?",a:"black"},
+{id:5,name:"Football boot (single)",cat:"Bags/Clothing",zone:"Sports Hall",keep:"Sports Hall Equipment Room",days:9,date:"3 days ago",q:"Which brand is it?",a:"nike"}];
+let items=SEED.slice(),alerts=[];
+try{const d=JSON.parse(localStorage.getItem(KEY)||"null");if(d){items=d.items;alerts=d.alerts}}catch(_){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({items,alerts}))}catch(_){}}
+let s={v:"home",q:"",cat:"",zone:"",sel:null,toast:"",photo:"",claim:null,n:""};
+const $=id=>document.getElementById(id);
+const matchFor=a=>items.find(i=>a.cat&&i.cat==a.cat&&(!a.zone||a.zone==NOMEM||i.zone==a.zone));
+function go(v,x={}){Object.assign(s,{v,toast:"",claim:null},x);render();scrollTo(0,0)}
+const pic=(i,c)=>i.photo?`<img src="${i.photo}" alt="">`:icon(i.cat);
+function itemCard(i){return `<div class="card item" onclick="go('detail',{sel:${i.id}})"><div class="th">${pic(i)}</div><div><b>${i.name}</b><div class="mu">Found at ${i.zone} · ${i.date}</div><span class="tag o">📍 ${i.keep}</span> <span class="tag w">${i.days} days left</span></div></div>`}
+function chips(list,key){return `<div class="chips">${list.map(c=>{const n=Array.isArray(c)?c[0]:c;return `<button class="chip ${s[key]==n?'on':''}" onclick="s.${key}=s.${key}==&quot;${n}&quot;?'':&quot;${n}&quot;;render()">${Array.isArray(c)?c[1]+' ':''}${n}</button>`}).join("")}</div>`}
+function results(){const q=s.q.trim().toLowerCase();return items.filter(i=>(!q||i.name.toLowerCase().includes(q))&&(!s.cat||i.cat==s.cat)&&(!s.zone||i.zone==s.zone))}
+function photoBtn(){return `<input type="file" accept="image/*" id="pf" style="display:none" onchange="pickPhoto(this)"><button class="btn s" onclick="$('pf').click()">${s.photo?'✅ Photo added (tap to change)':'📷 Add photo'}</button>${s.photo?`<div class="bigimg" style="height:110px;margin-top:8px"><img src="${s.photo}" alt=""></div>`:''}`}
+function pickPhoto(el){const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,360/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*k;c.height=im.height*k;c.getContext("2d").drawImage(im,0,0,c.width,c.height);s.photo=c.toDataURL("image/jpeg",.7);keepText();render()};im.src=r.result};r.readAsDataURL(f)}
+function keepText(){const a=$('ln')||$('fn');if(a)s.n=a.value}
+const V={
+home:()=>`<span class="wf">Wireframe 1</span><h1>UE Campus Finder</h1><div class="mu">Lost something at UE? Check every storage place in one search.</div>
+<div class="card"><input id="hq" placeholder="🔍 What did you lose? (e.g. wallet)" value="${s.q}" oninput="s.q=this.value" onkeydown="if(event.key==='Enter')go('search')">
+<button class="btn" onclick="go('search')">Search all storage places</button></div>
+<div class="row"><button class="btn s" onclick="go('lost',{n:'',photo:''})">😟 I lost something</button><button class="btn s" onclick="go('found',{n:'',photo:''})">🙌 I found something</button></div>
+<h2>Just handed in</h2>${items.slice(0,3).map(itemCard).join("")}
+<div class="mu">Library, cafeteria and central office listings, all in one place.</div>
+<button class="lk" onclick="items=SEED.slice();alerts=[];save();render()">Reset demo data</button>`,
+search:()=>{const r=results();return `<span class="wf">Wireframe 2</span><h1>Search</h1><input placeholder="Search by name" value="${s.q}" oninput="s.q=this.value;render(true)" id="sq">
+<label>Category</label>${chips(CATS,'cat')}<label>Where did you lose it? (as much as you remember)</label>${chips([...ZONES.map(z=>z[0]),NOMEM],'zone')}
+<div class="mu">${r.length} found</div>${r.map(itemCard).join("")||`<div class="card">No match yet.<button class="btn" onclick="go('lost',{n:s.q})">Get notified when it’s found</button></div>`}`},
+detail:()=>{const i=items.find(x=>x.id==s.sel);const c=s.claim;return `<span class="wf">Wireframe 3</span><button class="back" onclick="go('search')">← Back</button>
+<div class="card"><div class="bigimg">${pic(i)}</div><h2>${i.name}</h2>
+<div>📍 Currently at: <b>${i.keep}</b></div><div class="mu">Found at ${i.zone} · ${i.date} · moved to the central office or discarded in ${i.days} days</div></div>
+${c===true?`<div class="toast">✅ Verified! Collect it at ${i.keep} with your student ID. (The finder’s contact details stay private.)</div>`:`<div class="card"><b>Is this yours?</b><div class="mu">Answer the ownership question to claim it.</div><label>${i.q}</label><input id="ans" placeholder="Your answer">
+${c===false?'<div class="mu" style="color:var(--wa)">That doesn’t match. Please try again.</div>':''}<button class="btn" onclick="s.claim=$('ans').value.trim().toLowerCase()===&quot;${i.a.toLowerCase()}&quot;;render()">This is mine</button></div>`}`},
+lost:()=>`<span class="wf">Wireframe 4</span><button class="back" onclick="go('home')">← Home</button><h1>I lost something</h1><div class="mu">Register it and we’ll notify you when a matching item is handed in.</div>
+<label>Item name</label><input id="ln" placeholder="e.g. black wallet" value="${s.n}" oninput="s.n=this.value">
+<label>Category</label>${chips(CATS,'cat')}
+<label>Last place you had it (it’s okay if you don’t know)</label>${chips([...ZONES.map(z=>z[0]),NOMEM],'zone')}
+<label>Photo (optional)</label>${photoBtn()}
+<button class="btn" onclick="submitLost()">Register and get notified</button>`,
+found:()=>`<span class="wf">Wireframe 5</span><button class="back" onclick="go('home')">← Home</button><h1>I found something</h1><div class="mu">Just tell us where you left it. The owner can check right away.</div>
+<label>Item name</label><input id="fn" placeholder="e.g. blue umbrella" value="${s.n}" oninput="s.n=this.value">
+<label>Category</label>${chips(CATS,'cat')}<label>Where did you find it?</label>${chips(ZONES.map(z=>z[0]),'zone')}
+<label>Where is it now?</label><select id="fk">${ZONES.map(z=>`<option>${z[0]}</option>`).join("")}<option>I’m keeping it safe</option></select>
+<label>Photo (optional)</label>${photoBtn()}
+<label>Ownership question (a detail only the owner knows)</label><input id="fq" placeholder="e.g. What colour is the handle?"><input id="fa" placeholder="Correct answer (kept private)">
+<button class="btn" onclick="submitFound()">Submit</button>`,
+map:()=>`<span class="wf">Wireframe 6</span><h1>UE Campus Map</h1><div class="mu">Tap a place to see what was found there.</div>
+<div class="map">${ZONES.map(z=>`<button class="zone ${s.zone==z[0]?'on':''}" onclick="s.zone=s.zone==&quot;${z[0]}&quot;?'':&quot;${z[0]}&quot;;render()"><b>${z[1]}</b>${z[0]}<div class="mu">${items.filter(i=>i.zone==z[0]).length} items</div></button>`).join("")}</div>
+${items.filter(i=>!s.zone||i.zone==s.zone).map(itemCard).join("")}`,
+alerts:()=>`<span class="wf">Wireframe 7</span><h1>Alerts</h1>${s.toast?`<div class="toast">${s.toast}</div>`:''}${alerts.length?alerts.map((a,k)=>{const m=matchFor(a);return `<div class="card"><div class="item"><div class="th">${a.photo?`<img src="${a.photo}" alt="">`:icon(a.cat)}</div><div><b>${a.name}</b><div class="mu">${a.cat||'No category'} · ${a.zone||'No place'}</div></div></div>${m?`<div class="toast">🔔 Possible match: ${m.name} → ${m.keep}</div><button class="btn s" onclick="go('detail',{sel:${m.id}})">Check it</button>`:`<span class="tag w">Looking… we’ll notify you</span>`}</div>`}).join(""):'<div class="card mu">You haven’t registered anything yet.</div>'}`
+};
+function submitLost(){const n=$('ln').value.trim();if(!n){alert("Please enter an item name");return}
+const a={name:n,cat:s.cat,zone:s.zone,photo:s.photo};alerts.unshift(a);save();const m=matchFor(a);
+s.cat="";s.zone="";s.photo="";s.n="";go('alerts',{toast:m?"🔔 A similar item has already been handed in!":"✅ Registered. We’ll notify you when it turns up."})}
+function submitFound(){const n=$('fn').value.trim();if(!n||!s.cat||!s.zone){alert("Please enter a name, category and where you found it");return}
+items.unshift({id:Date.now(),name:n,cat:s.cat,zone:s.zone,photo:s.photo,keep:$('fk').value,days:14,date:"Just now",q:$('fq').value||"Describe a detail of the item.",a:$('fa').value.trim()});save();
+const hit=alerts.some(a=>matchFor(a)&&matchFor(a).name==n);
+s.cat="";s.zone="";s.photo="";s.n="";go(hit?'alerts':'search',{q:"",toast:"🔔 Someone who lost a similar item has been notified."})}
+const NAV=[["home","🏠","Home"],["search","🔍","Search"],["map","🗺️","Map"],["alerts","🔔","Alerts"]];
+function render(keep){const f=keep&&document.activeElement&&document.activeElement.id;const p=f&&document.activeElement.selectionStart;
+$('app').innerHTML=V[s.v]();
+$('nav').innerHTML=NAV.map(n=>`<button class="${s.v==n[0]?'on':''}" onclick="go('${n[0]}')"><span>${n[1]}</span>${n[2]}</button>`).join("");
+if(f){const e=$(f);if(e){e.focus();try{e.setSelectionRange(p,p)}catch(_){}}}}
+render();
+</script>
+</body>
+</html>
