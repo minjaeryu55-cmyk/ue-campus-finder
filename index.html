@@ -83,6 +83,10 @@ nav button.on{color:var(--ac)}nav button.on span{background:var(--ac2)}
 .lk{background:none;border:0;color:var(--mu);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer;padding:8px 0}
 .acct{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px;font-size:13px;color:var(--mu);flex-wrap:wrap}
 .acct b{color:var(--tx);overflow-wrap:anywhere}
+.acct.me{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:10px 12px;box-shadow:var(--sh);flex-wrap:nowrap}
+.av{width:36px;height:36px;border-radius:50%;background:var(--ac);color:var(--bg);display:grid;place-items:center;font-weight:750;flex:none}
+.perks{display:grid;gap:12px;margin:4px 0 2px}.perks div{display:flex;gap:12px;align-items:flex-start;font-size:14px}.perks i{font-style:normal;width:34px;height:34px;border-radius:10px;background:var(--ac2);display:grid;place-items:center;flex:none}
+.or{display:flex;align-items:center;gap:10px;color:var(--mu);font-size:12px;margin:14px 0 2px}.or:before,.or:after{content:"";flex:1;height:1px;background:var(--bd)}
 .card{position:relative}.x{position:absolute;top:8px;right:8px;background:none;border:0;color:var(--mu);font-size:22px;cursor:pointer;line-height:1;min-width:36px;min-height:36px;border-radius:50%}
 .btn:active,.chip:active,.zone:active,.item:active,.act:active{transform:scale(.98)}
 :focus-visible{outline:3px solid var(--ac);outline-offset:2px}
@@ -129,7 +133,7 @@ const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
 /* ---------- data: live mode (Netlify functions + Microsoft sign-in) ---------- */
 async function api(path,opt={}){const h={"content-type":"application/json"};
-  if(account)h.authorization="Bearer "+await idToken();
+  if(remote&&account)h.authorization="Bearer "+await idToken();
   let r;try{r=await fetch("api/"+path,{method:opt.method||"GET",headers:h,body:opt.body&&JSON.stringify(opt.body)})}catch(_){throw new Error("You seem to be offline. Please try again.")}
   const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Something went wrong ("+r.status+")");return d}
 async function refresh(){
@@ -203,13 +207,22 @@ async function initAuth(){await loadScript("vendor/msal-browser.min.js");
   await MS.initialize();
   const r=await MS.handleRedirectPromise().catch(e=>{s.err="Sign-in failed: "+e.message;return null});
   account=r?.account||MS.getActiveAccount()||MS.getAllAccounts()[0]||null;if(account)MS.setActiveAccount(account)}
-function signIn(){if(!MS)return;try{sessionStorage.setItem("uecf-after",JSON.stringify({v:s.v,sel:s.sel,f:s.f,cat:s.cat,zone:s.zone,cols:s.cols}))}catch(_){}
-  MS.loginRedirect({scopes:SCOPES,prompt:"select_account"})}
-function signOut(){MS.logoutRedirect({account,postLogoutRedirectUri:location.origin+location.pathname})}
+// Every "Sign in" button opens the sign-in screen. Live mode: Microsoft's sign-in page. Demo mode: email only, stored on this device.
+function signIn(){const after={v:s.v=="signin"?"home":s.v,sel:s.sel,f:s.f,cat:s.cat,zone:s.zone,cols:s.cols};
+  try{sessionStorage.setItem("uecf-after",JSON.stringify(after))}catch(_){}s.after=after;go("signin",{f:{}})}
+function doSignIn(){
+  if(remote){if(!MS){s.err="Sign-in is not available right now. Please try again later.";return render()}return MS.loginRedirect({scopes:SCOPES,prompt:"select_account"})}
+  const e=(s.f.em||"").trim().toLowerCase(),n=(s.f.nm||"").trim();
+  if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(e)){s.err="Please enter your university email address.";return render()}
+  account={username:e,name:n||e.split("@")[0],idTokenClaims:{email:e,name:n}};
+  try{localStorage.setItem("uecf-demo-user",JSON.stringify(account));sessionStorage.removeItem("uecf-after")}catch(_){}
+  const a=s.after||{v:"home"};go(a.v,{...a,toast:"👋 Welcome, "+esc(account.name)+"! You’re signed in."});checkPush()}
+function signOut(){if(remote)return MS.logoutRedirect({account,postLogoutRedirectUri:location.origin+location.pathname});
+  account=null;s.pushOn=false;try{localStorage.removeItem("uecf-demo-user")}catch(_){}go("home",{toast:"You’re signed out."})}
 async function idToken(){try{let r=await MS.acquireTokenSilent({scopes:SCOPES,account});
   if(r.idTokenClaims.exp*1000<Date.now()+6e4)r=await MS.acquireTokenSilent({scopes:SCOPES,account,forceRefresh:true});return r.idToken}
   catch(_){account=null;render();throw new Error("Your sign-in expired. Please sign in again.")}}
-const needLogin=()=>remote&&!account;
+const needLogin=()=>!account;
 const email=()=>account?(account.idTokenClaims?.email||account.username):"";
 
 /* ---------- helpers ---------- */
@@ -250,11 +263,10 @@ function results(){const r=live().filter(i=>Shared.textMatch(s.q,i)&&(!s.cat||i.
   return s.sort=="soon"?r.sort((a,b)=>new Date(a.expires)-new Date(b.expires)):r.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))}
 function photoBtn(){return `<input type="file" accept="image/*" id="pf" style="display:none" onchange="pickPhoto(this)"><button type="button" class="btn s" onclick="$('pf').click()">${s.photo?"✅ Photo added (tap to change)":"📷 Take or add a photo"}</button>${s.photo?`<div class="bigimg" style="height:120px;margin-top:8px"><img src="${s.photo}" alt=""></div>`:""}`}
 function pickPhoto(el){const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,360/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*k;c.height=im.height*k;c.getContext("2d").drawImage(im,0,0,c.width,c.height);s.photo=c.toDataURL("image/jpeg",.7);render()};im.src=r.result};r.readAsDataURL(f)}
-function acct(){
-  if(!remote)return `<div class="acct">🧪 Demo mode · data stays on this device. Sign-in and email alerts work on the live site.</div>`;
-  if(!MS)return "";
-  return account?`<div class="acct"><span>Signed in as <b>${esc(email())}</b></span><button class="lk" onclick="signOut()">Sign out</button></div>`
-    :`<div class="acct"><span>Sign in to get email alerts</span><button class="btn ms sm" onclick="signIn()">${MSLOGO} Sign in with Microsoft</button></div>`}
+function acct(){const demo=remote?"":`<div class="acct">🧪 Demo mode · data stays on this device.</div>`;
+  if(remote&&!MS)return "";
+  return (account?`<div class="acct me"><span class="av" aria-hidden="true">${esc((account.name||email())[0].toUpperCase())}</span><span style="flex:1;min-width:0">Signed in as<br><b>${esc(email())}</b></span><button class="lk" onclick="signOut()">Sign out</button></div>`
+    :`<div class="acct"><span>Sign in to get alerts by email and on your phone</span><button class="btn ms sm" onclick="signIn()">${MSLOGO} Sign in</button></div>`)+demo}
 const gate=msg=>`<div class="card"><b>Sign in first</b><div class="mu">${msg}</div><button class="btn ms" onclick="signIn()">${MSLOGO} Sign in with Microsoft</button><div class="mu c" style="margin-top:6px">Use your UE (Microsoft 365) account.</div></div>`;
 function installBox(){let hide=false;try{hide=localStorage.getItem("uecf-noinstall")}catch(_){}
   const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone;
@@ -267,9 +279,19 @@ async function install(){installEvt.prompt();await installEvt.userChoice;install
 
 /* ---------- views (numbered like the lo-fi wireframes) ---------- */
 const V={
+signin:()=>`<button class="back" onclick="go((s.after||{}).v||'home',s.after||{})">← Back</button>
+<div class="hero"><h1>Sign in</h1><p style="margin-bottom:0">Use your UE student or staff Microsoft account.</p></div>
+<div class="card"><div class="perks">
+<div><i>🔔</i><span><b>Get alerts</b><br><span class="mu">By email and on your phone when a matching item is handed in.</span></span></div>
+<div><i>🙌</i><span><b>Hand in found items</b><br><span class="mu">The owner is told where you left it.</span></span></div>
+<div><i>🔒</i><span><b>Claim safely</b><br><span class="mu">Only the real owner can claim, and your contact details are never shown.</span></span></div></div></div>
+<div class="form">${remote?"":`${field("em","UE email","name@ue-germany.de",'type="email" autocomplete="email" inputmode="email"')}${field("nm","Your name (optional)","e.g. Minjae",'autocomplete="name"')}`}
+${errHtml()}<button class="btn ms" onclick="doSignIn()">${MSLOGO} ${remote?"Sign in with Microsoft":"Continue"}</button>
+<div class="or">New here?</div><div class="mu c">There’s no separate sign-up. Your UE Microsoft account is your account – your profile is created the first time you sign in.</div></div>
+${remote?"":`<div class="mu c">Demo mode: no password needed and nothing leaves this device. On the live site this button opens Microsoft’s own sign-in page.</div>`}`,
 home:()=>`<div class="hero">${wf(1)}<h1>UE Campus Finder</h1><p>Lost something at UE? Check every storage place in one search.</p>
 <div class="sbox"><span aria-hidden="true">🔍</span><input type="search" id="hq" aria-label="What did you lose?" placeholder="What did you lose? e.g. wallet" value="${esc(s.q)}" oninput="s.q=this.value" onkeydown="if(event.key==='Enter')go('search')" enterkeyhint="search"><button onclick="go('search')">Search</button></div></div>
-${acct()}${installBox()}
+${toastHtml()}${acct()}${installBox()}
 <div class="acts"><button class="act" onclick="go('lost')"><div class="ic">😟</div><b>I lost something</b><span>Get an alert when it turns up</span></button>
 <button class="act f" onclick="go('found')"><div class="ic">🙌</div><b>I found something</b><span>Tell us where you left it</span></button></div>
 <h2>Browse by category</h2><div class="hs">${CATS.map(c=>`<button class="chip" onclick="go('search',{cat:'${c[0]}',q:'',zone:'',col:''})">${c[1]} ${c[0]}</button>`).join("")}</div>
@@ -291,7 +313,7 @@ ${Shared.PLACES[i.keep]?`<div><i>🕘</i><span>${pill(i.keep)}<br><span class="m
 ${i.brand?`<div><i>🏷️</i><span>${esc(i.brand)}</span></div>`:""}<div><i>⏳</i><span>Kept until <b>${fmt(i.expires)}</b><br><span class="mu">Then it moves to the UE Central Office or is discarded.</span></span></div></div></div>
 ${canEdit(i)&&!i.claimed?editor(i):""}${claimBox(i)}`},
 
-lost:()=>`${wf(4)}<button class="back" onclick="go('home')">← Home</button><h1>I lost something</h1><div class="mu">Register it and we’ll ${remote?"email you":"notify you"} when a matching item is handed in.</div>
+lost:()=>`${wf(4)}<button class="back" onclick="go('home')">← Home</button><h1>I lost something</h1>${toastHtml()}<div class="mu">Register it and we’ll ${remote?"email you":"notify you"} when a matching item is handed in.</div>
 ${needLogin()?gate("Sign in with your Microsoft account so we can email you when it turns up."):`
 <div class="form">${field("n","Item name","e.g. black wallet")}${field("brand","Brand or distinctive mark (optional)","e.g. Samsung, sticker, initials")}
 <label>Category</label>${chips("cat","cat")}
@@ -301,7 +323,7 @@ ${needLogin()?gate("Sign in with your Microsoft account so we can email you when
 ${errHtml()}<button class="btn" ${s.busy?"disabled":""} onclick="submitLost()">${s.busy?"Saving…":remote?"Register and email me":"Register and get notified"}</button></div>
 ${remote?`<div class="mu c" style="margin-top:6px">Alerts go to ${esc(email())}</div>`:""}`}`,
 
-found:()=>{const keep=s.f.keep||KEEPS[ZN.indexOf(s.zone)]||KEEPS[5];return `${wf(5)}<button class="back" onclick="go('home')">← Home</button><h1>I found something</h1><div class="mu">Just tell us where you left it. The owner can check right away.</div>
+found:()=>{const keep=s.f.keep||KEEPS[ZN.indexOf(s.zone)]||KEEPS[5];return `${wf(5)}<button class="back" onclick="go('home')">← Home</button><h1>I found something</h1>${toastHtml()}<div class="mu">Just tell us where you left it. The owner can check right away.</div>
 ${needLogin()?gate("Sign in so the owner can be notified. Your contact details are never shown to them."):`
 <div class="form">${field("n","Item name","e.g. blue umbrella")}${field("brand","Brand or distinctive mark (optional)","e.g. Nike, sticker, initials")}
 <label>Category</label>${chips("cat","cat")}
@@ -323,7 +345,7 @@ ${live().filter(i=>!s.zone||s.zone==NOMEM||i.zone==s.zone).map(itemCard).join(""
 
 alerts:()=>`${wf(7)}<h1>Alerts</h1>${toastHtml()}
 ${needLogin()?gate("Sign in to see your registered items and get matches by email."):
-(remote?`<div class="mu">📧 Matches are emailed to <b>${esc(email())}</b>${CFG.mail?"":" (email sending is not set up on the server yet)"}.</div>`:`<div class="mu">Demo mode: alerts show here and as a notification on this device. On the live site they are also emailed to you.</div>`)+pushCard()+
+(remote?`<div class="mu">📧 Matches are emailed to <b>${esc(email())}</b>${CFG.mail?"":" (email sending is not set up on the server yet)"}.</div>`:`<div class="mu">Demo mode: alerts show here and as a notification on this device. On the live site they are also emailed to <b>${esc(email())}</b>.</div>`)+pushCard()+
 (alerts.length?alerts.map((a,ai)=>{const m=a.match,cl=Shared.CHECKLIST[a.cat]||[],done=(checks[a.id]||[]).length;return `<div class="card ${a.resolved?"done":""}"><button class="x" aria-label="Remove alert" onclick="s.rm='${a.id}';render()">×</button>
 <div class="item"><div class="th">${a.photo?`<img src="${esc(a.photo)}" alt="">`:icon(a.cat)}</div><div><b>${esc(a.name)}</b> ${dots(a)}<div class="mu">${esc(a.cat||"No category")} · ${esc(a.zone||"No place")}</div></div></div>
 ${a.resolved?`<div class="sec" style="margin-top:8px"><span class="tag o">✅ Found – no more alerts</span><button class="lk" onclick="run(()=>doResolve('${a.id}',false))">Still missing?</button></div>`:
@@ -381,7 +403,7 @@ async function boot(){
     try{const r=await fetch("api/config",{cache:"no-store"});
       if(r.ok&&(r.headers.get("content-type")||"").includes("json")){CFG=await r.json();remote=!!CFG.clientId}}catch(_){}
   }
-  if(remote){try{await initAuth()}catch(e){s.err=e.message}}else loadLocal();
+  if(remote){try{await initAuth()}catch(e){s.err=e.message}}else{loadLocal();try{account=JSON.parse(localStorage.getItem("uecf-demo-user")||"null")}catch(_){}}
   try{const a=JSON.parse(sessionStorage.getItem("uecf-after")||"null");sessionStorage.removeItem("uecf-after");if(a)Object.assign(s,a)}catch(_){}
   route();await refresh();checkPush()}
 function route(){const h=location.hash.match(/^#(item=([\w-]+)|lost|found|search|map|alerts)$/);if(!h)return;
