@@ -159,7 +159,7 @@ async function refresh(){
   s.loading=false;render()}
 async function doFound(d){
   if(remote){const r=await api("items",{method:"POST",body:d});items.unshift(r.item);return{hit:r.notified,contacts:r.ownerContacts||[]}}
-  const {contact,...rest}=d,it={...rest,finderContact:contact||"",id:newId(),createdAt:new Date().toISOString(),expires:Shared.addDays(Date.now(),d.days)};
+  const {contact,...rest}=d,it={...rest,finder:email(),finderContact:contact||"",id:newId(),createdAt:new Date().toISOString(),expires:Shared.addDays(Date.now(),d.days)};
   items.unshift(it);localMatch();saveLocal();const hits=alerts.filter(a=>!a.resolved&&Shared.match(a,it).score>0);
   if(hits.length&&s.pushOn)localNotify("🔔 Possible match: "+it.name,"Now at "+it.keep+". Tap to check it.","./#item="+it.id);
   return{hit:hits.length>0,contacts:hits.filter(a=>a.contact).slice(0,3).map(a=>({name:a.name,contact:a.contact}))}}
@@ -250,7 +250,8 @@ const email=()=>account?(account.idTokenClaims?.email||account.username):"";
 
 /* ---------- helpers ---------- */
 const live=()=>items.filter(i=>!i.claimed);
-const canEdit=i=>remote?!!i.canEdit:true;
+// Only the person who handed the item in (and staff, on the live site) can change its storage period.
+const canEdit=i=>remote?!!i.canEdit:!!account&&!!i.finder&&i.finder==email();
 const dots=i=>(i.colors||[]).map(c=>`<i class="sw" title="${c}" aria-label="${c}" style="background:${SW[c]}"></i>`).join("");
 const pic=i=>i.photo?`<img src="${esc(i.photo)}" alt="">`:icon(i.cat);
 const pad=n=>String(n).padStart(2,"0");
@@ -399,7 +400,7 @@ ${cl.length?`<details class="wait" ${(s.op[a.id]??(ai==0&&done<cl.length))?"open
 };
 
 function editor(i){const v=s.exp||ymd(i.expires),kp=s.kp||i.keep,today=ymd(Date.now()),max=ymd(Date.now()+365*Shared.DAY);
-  return `<div class="card"><b>✏️ Storage period</b><div class="mu">${remote?"Only the finder and lost & found staff can change this.":"Demo mode: on the live site only the finder and staff can change this."}</div>
+  return `<div class="card"><b>✏️ Storage period</b><div class="mu">${remote?"You handed this in, so you can change it. Lost &amp; found staff can too.":"You handed this in, so you can change it."}</div>
 <div class="chips">${[-7,-1,1,7].map(n=>`<button class="chip" onclick="bump(${n})">${n>0?"+":"−"}${Math.abs(n)} day${Math.abs(n)>1?"s":""}</button>`).join("")}</div>
 <label for="exp">Keep until</label><input type="date" id="exp" value="${v}" min="${today}" max="${max}" onchange="s.exp=this.value;render()">
 <div class="mu">${Math.max(v==ymd(i.expires)?Shared.daysLeft(i.expires):Shared.daysLeft(endOf(v)),0)} days from today</div>
