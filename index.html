@@ -105,13 +105,24 @@ details.wait summary::-webkit-details-marker{display:none}details.wait summary:a
 .cand{display:flex;gap:12px;align-items:center;width:100%;text-align:left;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:14px;padding:10px;margin-top:8px;cursor:pointer}
 .cand.top{background:var(--ok2);border-color:transparent}.cand .th{width:48px;height:48px;font-size:24px}.cand>div:last-child{min-width:0}.cand .tag{margin:0 0 2px;display:table}
 .sel{user-select:all;-webkit-user-select:all;overflow-wrap:anywhere}
+.getapp{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;cursor:pointer}.getapp>span:nth-child(2){flex:1;min-width:0}
+.getapp .go{font-weight:700;color:var(--ac);white-space:nowrap}
+.appic{width:44px;height:44px;flex:none;display:block;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.15)}.appic svg{width:100%;height:100%;display:block}
+.appic.big{width:64px;height:64px;border-radius:16px;position:relative;z-index:1}
+.apphero{display:flex;gap:14px;align-items:center}.apphero>div{position:relative;z-index:1;min-width:0}
+.steps{margin:10px 0;padding-left:0;list-style:none;counter-reset:st;display:grid;gap:10px}
+.steps li{counter-increment:st;display:flex;gap:10px;align-items:flex-start;font-size:15px}
+.steps li:before{content:counter(st);flex:none;width:26px;height:26px;border-radius:50%;background:var(--ac2);color:var(--ac);font-weight:750;display:grid;place-items:center;font-size:13px}
+.key{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 5px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);font-weight:700}
+.qrrow{display:flex;gap:14px;align-items:center;margin-top:10px;flex-wrap:wrap}.qr{width:150px;height:150px;flex:none;background:#fff;border-radius:12px;padding:8px}.qr svg{width:100%;height:100%;display:block}
+.qrrow>div:last-child{flex:1;min-width:160px}.url{font-family:ui-monospace,Menlo,monospace;font-size:12px;margin-top:6px;color:var(--ac)}
 @media (hover:hover){.item:hover,.zone:hover,.act:hover{border-color:var(--ac)}}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <nav aria-label="Main"><div id="nav"></div></nav>
-<script src="shared.js"></script>
+<script src="shared.js?v=5"></script>
 <script>
 const {ZONES,CATS,TYPES,NOMEM,COLORS}=Shared,KEY="uecf-v4",SCOPES=["openid","profile","email"];
 const ZN=ZONES.map(z=>z[0]);
@@ -167,6 +178,12 @@ async function doExpiry(id,expires,keep){const i=items.find(x=>x.id==id);
   if(remote){Object.assign(i,await api("items/"+id,{method:"PATCH",body:{expires,keep}}));return}
   i.expires=expires;if(keep)i.keep=keep;saveLocal()}
 
+/* ---------- get the app (installable web app: no app store needed) ---------- */
+const SITES={netlify:["https://lambent-pavlova-1fa1a2.netlify.app/","<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 41 41' shape-rendering='crispEdges'><path fill='#ffffff' d='M0 0h41v41H0z'/><path stroke='#000000' d='M4 4.5h7m1 0h1m1 0h1m1 0h2m2 0h2m3 0h2m3 0h7M4 5.5h1m5 0h1m2 0h2m5 0h1m3 0h1m3 0h1m1 0h1m5 0h1M4 6.5h1m1 0h3m1 0h1m1 0h4m1 0h1m1 0h3m3 0h1m1 0h1m2 0h1m1 0h3m1 0h1M4 7.5h1m1 0h3m1 0h1m5 0h1m6 0h1m6 0h1m1 0h3m1 0h1M4 8.5h1m1 0h3m1 0h1m2 0h1m2 0h2m1 0h1m1 0h1m1 0h1m3 0h1m2 0h1m1 0h3m1 0h1M4 9.5h1m5 0h1m1 0h3m2 0h1m1 0h1m1 0h3m1 0h3m2 0h1m5 0h1M4 10.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M13 11.5h1m5 0h2m2 0h2m2 0h2M4 12.5h1m1 0h1m3 0h2m6 0h1m1 0h1m3 0h1m3 0h1m2 0h1m2 0h1m1 0h1M5 13.5h2m2 0h1m1 0h1m1 0h1m3 0h1m1 0h3m1 0h6m1 0h1m2 0h1m1 0h2M4 14.5h3m2 0h4m2 0h2m2 0h1m3 0h2m2 0h2m4 0h2m1 0h1M4 15.5h4m3 0h3m3 0h1m3 0h1m2 0h2m1 0h1m2 0h4m1 0h1M6 16.5h1m3 0h3m1 0h1m2 0h1m1 0h1m1 0h1m3 0h1m1 0h2m1 0h2m4 0h1M5 17.5h3m3 0h1m2 0h2m14 0h1m2 0h1m1 0h2M4 18.5h1m1 0h5m2 0h4m1 0h2m1 0h3m1 0h1m1 0h1m4 0h3m1 0h1M6 19.5h1m1 0h2m3 0h1m2 0h3m3 0h1m4 0h4m1 0h2M5 20.5h4m1 0h4m1 0h2m1 0h2m2 0h3m1 0h1m1 0h1m1 0h2m1 0h1m1 0h1M4 21.5h1m1 0h1m1 0h1m5 0h2m2 0h2m3 0h2m2 0h2m1 0h1m2 0h1m2 0h1M5 22.5h2m2 0h2m3 0h1m3 0h2m1 0h7m1 0h3m1 0h2m1 0h1M5 23.5h2m4 0h4m2 0h2m3 0h3m1 0h1m1 0h2m2 0h2m2 0h1M4 24.5h3m2 0h4m2 0h3m1 0h8m1 0h1m1 0h1M5 25.5h2m1 0h2m2 0h1m2 0h3m2 0h3m1 0h4m1 0h3m1 0h2m1 0h1M4 26.5h7m3 0h1m1 0h1m3 0h2m2 0h2m1 0h2m2 0h1m1 0h2m1 0h1M6 27.5h2m5 0h3m1 0h1m1 0h2m1 0h3m1 0h1m4 0h1m1 0h1m1 0h2M4 28.5h2m1 0h1m2 0h3m1 0h1m1 0h1m3 0h1m1 0h1m4 0h7m1 0h1M12 29.5h1m1 0h2m2 0h9m1 0h1m3 0h1m3 0h1M4 30.5h7m1 0h1m3 0h1m1 0h3m2 0h1m4 0h1m1 0h1m1 0h3m1 0h1M4 31.5h1m5 0h1m2 0h2m1 0h1m1 0h4m3 0h1m1 0h2m3 0h2m2 0h1M4 32.5h1m1 0h3m1 0h1m2 0h2m1 0h1m2 0h1m1 0h1m1 0h1m1 0h1m1 0h6M4 33.5h1m1 0h3m1 0h1m3 0h1m3 0h1m8 0h1m1 0h1m1 0h2m1 0h1m1 0h1M4 34.5h1m1 0h3m1 0h1m1 0h1m2 0h2m1 0h2m1 0h3m1 0h5m1 0h2m1 0h3M4 35.5h1m5 0h1m4 0h4m3 0h1m4 0h2m2 0h3M4 36.5h7m1 0h1m2 0h1m2 0h3m2 0h2m3 0h6m2 0h1'/></svg>"],pages:["https://minjaeryu55-cmyk.github.io/ue-campus-finder/","<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 41 41' shape-rendering='crispEdges'><path fill='#ffffff' d='M0 0h41v41H0z'/><path stroke='#000000' d='M4 4.5h7m1 0h1m1 0h2m6 0h1m3 0h1m3 0h7M4 5.5h1m5 0h1m2 0h2m2 0h2m2 0h2m1 0h1m1 0h1m1 0h1m1 0h1m5 0h1M4 6.5h1m1 0h3m1 0h1m1 0h2m1 0h1m2 0h3m1 0h1m1 0h2m1 0h2m1 0h1m1 0h3m1 0h1M4 7.5h1m1 0h3m1 0h1m2 0h1m2 0h1m1 0h3m1 0h1m2 0h2m3 0h1m1 0h3m1 0h1M4 8.5h1m1 0h3m1 0h1m2 0h1m3 0h4m1 0h5m1 0h1m1 0h1m1 0h3m1 0h1M4 9.5h1m5 0h1m1 0h1m2 0h2m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m5 0h1M4 10.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M13 11.5h1m1 0h2m1 0h1m3 0h3m1 0h2M4 12.5h1m1 0h1m3 0h2m4 0h1m2 0h2m3 0h1m2 0h2m2 0h1m2 0h1m1 0h1M6 13.5h2m1 0h1m6 0h1m2 0h2m1 0h3m1 0h3m1 0h1m2 0h1m2 0h1M7 14.5h1m2 0h1m2 0h1m2 0h8m3 0h4m2 0h2m1 0h1M6 15.5h3m3 0h2m4 0h1m1 0h1m1 0h1m1 0h1m2 0h1m1 0h5m1 0h1M6 16.5h1m1 0h1m1 0h1m1 0h2m1 0h1m1 0h6m1 0h1m5 0h2m3 0h1M4 17.5h3m2 0h1m1 0h2m1 0h1m2 0h2m1 0h4m3 0h2m1 0h2m1 0h4M5 18.5h1m3 0h4m1 0h2m1 0h2m1 0h5m1 0h2m4 0h1m3 0h1M5 19.5h2m4 0h1m2 0h3m2 0h2m1 0h2m4 0h5M4 20.5h1m5 0h1m3 0h1m2 0h2m4 0h2m2 0h2m1 0h2m1 0h1m1 0h1M4 21.5h1m1 0h2m1 0h1m7 0h5m1 0h1m1 0h4m1 0h1m2 0h1m2 0h1M6 22.5h2m2 0h1m2 0h3m3 0h1m3 0h1m1 0h7m1 0h2m1 0h1M4 23.5h1m1 0h1m4 0h1m4 0h3m2 0h1m2 0h1m1 0h4m2 0h2m2 0h1M4 24.5h2m1 0h4m4 0h2m4 0h1m1 0h1m6 0h2M5 25.5h3m1 0h1m1 0h1m3 0h1m2 0h1m2 0h1m1 0h3m1 0h2m1 0h1m2 0h2m1 0h1M4 26.5h2m1 0h1m2 0h1m1 0h2m5 0h1m2 0h2m1 0h4m3 0h1m3 0h1M6 27.5h1m1 0h2m3 0h4m1 0h1m3 0h1m1 0h1m1 0h1m2 0h1m1 0h1m1 0h1M4 28.5h2m3 0h6m2 0h1m1 0h2m1 0h2m3 0h6m3 0h1M12 29.5h3m3 0h3m2 0h1m1 0h2m1 0h1m3 0h1m3 0h1M4 30.5h7m1 0h1m1 0h1m4 0h1m1 0h3m4 0h1m1 0h1m1 0h5M4 31.5h1m5 0h1m3 0h4m1 0h2m1 0h1m1 0h1m2 0h2m3 0h2m2 0h1M4 32.5h1m1 0h3m1 0h1m5 0h1m1 0h7m2 0h6m2 0h2M4 33.5h1m1 0h3m1 0h1m3 0h2m4 0h5m2 0h1m1 0h1m1 0h3m1 0h2M4 34.5h1m1 0h3m1 0h1m1 0h1m1 0h1m3 0h1m1 0h1m2 0h3m1 0h1m1 0h1m1 0h2m1 0h3M4 35.5h1m5 0h1m4 0h1m3 0h2m3 0h1m1 0h8M4 36.5h7m1 0h2m2 0h2m2 0h1m2 0h1m2 0h1m1 0h1m1 0h4m2 0h1'/></svg>"]};
+const APPICON="<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='#2f5d62'/><path d='M256 92c-70 0-126 55-126 124 0 92 126 204 126 204s126-112 126-204c0-69-56-124-126-124z' fill='#f6f5f0'/><circle cx='248' cy='208' r='52' fill='none' stroke='#2f5d62' stroke-width='22'/><path d='M285 246l38 38' stroke='#2f5d62' stroke-width='24' stroke-linecap='round'/></svg>";
+const site=()=>location.host.includes("github.io")?SITES.pages:SITES.netlify;
+const plat=()=>isIOS?"ios":/android/i.test(navigator.userAgent)?"android":"desktop";
+
 /* ---------- phone notifications (Web Push; demo mode shows them on this device only) ---------- */
 const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent),standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone;
 function pushState(){
@@ -200,7 +217,7 @@ function pushCard(){const st=pushState(),h=`<b>📱 Phone notifications</b>`;if(
   const msg={
     off:`${h}<div class="mu">Get a notification on this phone as soon as a matching item is handed in.</div><button class="btn" ${s.busy?"disabled":""} onclick="enablePush()">Turn on notifications</button>`,
     on:`<div class="sec"><span>${h}<div class="mu">On for this device.</div></span><button class="lk" onclick="disablePush()">Turn off</button></div>`,
-    "ios-install":`${h}<div class="mu">On iPhone, add the app to your Home Screen first: tap <b>Share</b> → <b>Add to Home Screen</b>, then open it from there and turn notifications on.</div>`,
+    "ios-install":`${h}<div class="mu">On iPhone, add the app to your Home Screen first, then open it from there and turn notifications on.</div><button class="btn s" onclick="go('app',{plat:'ios'})">📲 Show me how</button>`,
     denied:`${h}<div class="mu">Notifications are blocked for this site. Allow them in your phone or browser settings.</div>`,
     unsupported:`${h}<div class="mu">This browser can’t show notifications. Open the Alerts tab to check for matches.</div>`,
     unconfigured:""}[st];
@@ -280,19 +297,30 @@ function pickPhoto(el){const f=el.files[0];if(!f)return;const r=new FileReader()
 function acct(){const demo=remote?"":`<div class="acct">🧪 Demo mode · data stays on this device.</div>`;
   if(remote&&!MS)return "";
   return (account?`<div class="acct me"><span class="av" aria-hidden="true">${esc((account.name||email())[0].toUpperCase())}</span><span style="flex:1;min-width:0">Signed in as<br><b>${esc(email())}</b></span><button class="lk" onclick="signOut()">Sign out</button></div>`
-    :`<div class="acct"><span>Sign in to get phone alerts when your item turns up</span><button class="btn ms sm" onclick="signIn()">${MSLOGO} Sign in</button></div>`)+demo}
+    :`<div class="acct me"><span style="flex:1;min-width:0">Sign in to get phone alerts when your item turns up</span><button class="btn ms sm" onclick="signIn()">${MSLOGO} Sign in</button></div>`)+demo}
 const gate=msg=>`<div class="card"><b>Sign in first</b><div class="mu">${msg}</div><button class="btn ms" onclick="signIn()">${MSLOGO} Sign in with Microsoft</button><div class="mu c" style="margin-top:6px">Use your UE (Microsoft 365) account.</div></div>`;
 function installBox(){let hide=false;try{hide=localStorage.getItem("uecf-noinstall")}catch(_){}
-  const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone;
-  if(hide||standalone)return "";
-  const x=`<button class="x" aria-label="Hide" onclick="try{localStorage.setItem('uecf-noinstall',1)}catch(_){};render()">×</button>`;
-  if(installEvt)return `<div class="card">${x}<b>📲 Get the app</b><div class="mu">Install UE Campus Finder on your phone’s home screen.</div><button class="btn s" onclick="install()">Install app</button></div>`;
-  if(/iphone|ipad|ipod/i.test(navigator.userAgent))return `<div class="card">${x}<b>📲 Get the app</b><div class="mu">In Safari tap <b>Share</b> → <b>Add to Home Screen</b>.</div></div>`;
-  return ""}
+  if(hide||standalone())return "";
+  return `<button class="card getapp" onclick="go('app')"><span class="appic">${APPICON}</span><span><b>Get the app</b><br><span class="mu">Free · installs from your browser · phone alerts</span></span><span class="go">${installEvt?"Install":"How"} ›</span></button>`}
 async function install(){installEvt.prompt();await installEvt.userChoice;installEvt=null;render()}
 
 /* ---------- views (numbered like the lo-fi wireframes) ---------- */
 const V={
+app:()=>{const p=s.plat||plat(),[url,qr]=site(),st=standalone();
+  const tab=(k,l)=>`<button class="chip ${p==k?"on":""}" aria-pressed="${p==k}" onclick="s.plat='${k}';render()">${l}</button>`;
+  const steps=a=>`<ol class="steps">${a.map(x=>`<li><span>${x}</span></li>`).join("")}</ol>`;
+  return `<button class="back" onclick="go('home')">← Home</button>
+<div class="hero apphero"><span class="appic big">${APPICON}</span><div><h1>Get the app</h1><p style="margin:2px 0 0">UE Campus Finder installs straight from your browser. No app store, free, about 10 seconds.</p></div></div>
+${st?`<div class="toast">✅ You’re already using the app.</div>`:installEvt?`<button class="btn" onclick="install()">📲 Install UE Campus Finder</button>`:""}
+<div class="chips" role="group" aria-label="Device">${tab("ios","📱 iPhone")}${tab("android","🤖 Android")}${tab("desktop","💻 Computer")}</div>
+<div class="card">${p=="ios"?`<b>iPhone / iPad</b>${steps(["Open this page in <b>Safari</b>.","Tap the <b>Share</b> button <span class='key'>⬆︎</span> at the bottom of the screen.","Scroll down and tap <b>Add to Home Screen</b>.","Tap <b>Add</b>. Open the app from your Home Screen."])}<div class="mu">Phone notifications on iPhone only work in the app you added to the Home Screen (iOS 16.4 or later).</div>`
+:p=="android"?`<b>Android</b>${installEvt?`<p class="mu">Tap the button above, or:</p>`:""}${steps(["Open this page in <b>Chrome</b>.","Tap the menu <span class='key'>⋮</span> in the top right.","Tap <b>Install app</b> (or <b>Add to Home screen</b>).","Tap <b>Install</b>. The app appears with your other apps."])}`
+:`<b>Scan with your phone</b><div class="qrrow"><div class="qr">${qr}</div><div><div class="mu">Point your phone camera at the code to open the app, then follow the iPhone or Android steps.</div><div class="url sel">${url}</div></div></div>
+<div class="mu" style="margin-top:10px">On this computer: in Chrome or Edge, click the install icon <span class='key'>⊕</span> at the right end of the address bar.</div>`}</div>
+<h2>Why install it?</h2><div class="card perks">
+<div><i>🔔</i><span><b>Phone alerts</b><br><span class="mu">Get notified the moment a matching item is handed in.</span></span></div>
+<div><i>⚡</i><span><b>One tap away</b><br><span class="mu">Opens full-screen from your home screen, like any other app.</span></span></div>
+<div><i>📶</i><span><b>Works offline</b><br><span class="mu">Browse the latest items even with a weak signal.</span></span></div></div>`},
 signin:()=>`<button class="back" onclick="go((s.after||{}).v||'home',s.after||{})">← Back</button>
 <div class="hero"><h1>Sign in</h1><p style="margin-bottom:0">Use your UE student or staff Microsoft account.</p></div>
 <div class="card"><div class="perks">
@@ -311,7 +339,7 @@ ${toastHtml()}${acct()}${installBox()}
 <h2>Browse by category</h2><div class="hs">${CATS.map(c=>`<button class="chip" onclick="go('search',{cat:'${c[0]}',q:'',zone:'',col:''})">${c[1]} ${c[0]}</button>`).join("")}</div>
 <div class="sec"><h2>Just handed in</h2><button class="lk" onclick="go('search',{q:'',cat:'',zone:'',col:''})">See all</button></div>${s.loading?skel():live().slice(0,3).map(itemCard).join("")||`<div class="card mu">Nothing handed in yet.</div>`}
 <div class="mu">Library, cafeteria and central office listings, all in one place.</div>
-${remote?"":`<button class="lk" onclick="localStorage.removeItem(KEY);loadLocal();localMatch();render()">Reset demo data</button>`}`,
+<div class="row" style="flex-wrap:wrap;gap:4px 16px">${standalone()?"":`<button class="lk" onclick="go('app')">📲 Get the app</button>`}${remote?"":`<button class="lk" onclick="localStorage.removeItem(KEY);loadLocal();localMatch();render()">Reset demo data</button>`}</div>`,
 
 search:()=>{const r=results();return `${wf(2)}<h1>Search</h1>${toastHtml()}<input type="search" id="sq" placeholder="Search by name, brand or colour" value="${esc(s.q)}" oninput="s.q=this.value;render(true)" enterkeyhint="search">
 <div class="mu">Different words are understood: “gray” = grey, “navy” = blue, “AirPods” = earbuds.</div>
@@ -422,7 +450,7 @@ async function boot(){
   if(remote){try{await initAuth()}catch(e){s.err=e.message}}else{loadLocal();try{account=JSON.parse(localStorage.getItem("uecf-demo-user")||"null")}catch(_){}}
   try{const a=JSON.parse(sessionStorage.getItem("uecf-after")||"null");sessionStorage.removeItem("uecf-after");if(a)Object.assign(s,a)}catch(_){}
   route();await refresh();checkPush()}
-function route(){const h=location.hash.match(/^#(item=([\w-]+)|lost|found|search|map|alerts)$/);if(!h)return;
+function route(){const h=location.hash.match(/^#(item=([\w-]+)|lost|found|search|map|alerts|app)$/);if(!h)return;
   history.replaceState(null,"",location.pathname+location.search);if(h[2])go("detail",{prev:"home",sel:h[2]});else go(h[1])}
 addEventListener("hashchange",route);
 render();boot();
