@@ -357,7 +357,7 @@ ${canEdit(i)&&!i.claimed?editor(i):""}${claimBox(i)}`},
 
 lost:()=>`${wf(4)}<button class="back" onclick="go('home')">← Home</button><h1>I lost something</h1>${toastHtml()}<div class="mu">Register it and we’ll notify you on your phone when a matching item is handed in.</div>
 ${needLogin()?gate("Sign in with your Microsoft account so we can notify you when it turns up."):`
-<div class="form">${field("n","Item name","e.g. black wallet")}${field("brand","Brand or distinctive mark (optional)","e.g. Samsung, sticker, initials")}${field("contact","Your contact (optional)","phone, Instagram, KakaoTalk ID…",'autocomplete="tel"')}<div class="mu">Shown to signed-in students who hand in a matching item, so they can reach you directly.</div>
+<div class="form">${field("n","Item name","e.g. black wallet")}${field("brand","Brand or distinctive mark (optional)","e.g. Samsung, sticker, initials")}${field("contact","Your contact (optional)","phone, Instagram or WhatsApp",'autocomplete="tel"')}<div class="mu">Shown to signed-in students who hand in a matching item, so they can reach you directly.</div>
 <label>Category</label>${chips("cat","cat")}${typeField()}
 ${colorFields()}
 <label>When did you lose it?</label>${chips("when","when")}
@@ -368,7 +368,7 @@ ${errHtml()}<button class="btn" ${s.busy?"disabled":""} onclick="submitLost()">$
 
 found:()=>{const keep=s.f.keep||KEEPS[ZN.indexOf(s.zone)]||KEEPS.at(-1);return `${wf(5)}<button class="back" onclick="go('home')">← Home</button><h1>I found something</h1>${toastHtml()}<div class="mu">Just tell us where you left it. The owner can check right away.</div>
 ${needLogin()?gate("Sign in so the owner can be notified on their phone."):`
-<div class="form">${field("n","Item name","e.g. blue umbrella")}${field("brand","Brand or distinctive mark (optional)","e.g. Nike, sticker, initials")}${field("contact","Your contact (optional)","phone, Instagram, KakaoTalk ID…",'autocomplete="tel"')}<div class="mu">Shown to signed-in students on this item, so the owner can reach you directly.</div>
+<div class="form">${field("n","Item name","e.g. blue umbrella")}${field("brand","Brand or distinctive mark (optional)","e.g. Nike, sticker, initials")}${field("contact","Your contact (optional)","phone, Instagram or WhatsApp",'autocomplete="tel"')}<div class="mu">Shown to signed-in students on this item, so the owner can reach you directly.</div>
 <label>Category</label>${chips("cat","cat")}${typeField()}
 ${colorFields(1)}
 <label>Where did you find it?</label>${chips("zone","fzone")}
@@ -416,7 +416,7 @@ function claimBox(i){const c=s.claim;
   return `<div class="card"><b>Is this yours?</b><div class="mu">Answer the ownership question to claim it.</div><label for="ans">${esc(i.q)}</label>
 <input id="ans" placeholder="Your answer" value="${esc(s.f.ans)}" oninput="s.f.ans=this.value" onkeydown="if(event.key==='Enter')claim()" autocomplete="off">
 <div class="mu">Capital letters, spelling variants and similar words (navy = blue) are fine.</div>
-${field("cc","Your contact for the finder (optional)","phone, Instagram, KakaoTalk ID…")}
+${field("cc","Your contact for the finder (optional)","phone, Instagram or WhatsApp")}
 ${c?`<div class="err">${c.locked?"Too many wrong answers. Please visit the office with your student ID.":"That doesn’t match. Please try again."+(c.left!=null?` (${c.left} tries left)`:"")}</div>`:""}
 ${s.err&&!c?errHtml():""}<button class="btn" ${s.busy||c?.locked?"disabled":""} onclick="claim()">${s.busy?"Checking…":"This is mine"}</button></div>`}
 function claim(){const v=($("ans")||{}).value||"";if(!v.trim())return;run(async()=>{s.claim=await doClaim(s.sel,v,(s.f.cc||"").trim())})}
