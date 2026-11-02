@@ -1,0 +1,12 @@
+# Static files are copied to dist/ so node_modules is not published.
+[build]
+  command = "mkdir -p dist/vendor && cp index.html lofi-wireframes.html shared.js sw.js manifest.webmanifest icon* dist/ && cp vendor/* dist/vendor/"
+  publish = "dist"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"

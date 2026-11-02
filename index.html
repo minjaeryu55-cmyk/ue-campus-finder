@@ -4,116 +4,317 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>UE Campus Finder</title>
+<meta name="description" content="Lost something at UE? Check every campus storage place in one search.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#2f5d62" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14191b" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="UE Finder">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
-:root{--bg:#f6f5f0;--card:#fff;--tx:#1f2a2e;--mu:#6b777b;--ac:#2f5d62;--ac2:#e6efef;--bd:#dcdad0;--ok:#2e7d4f;--wa:#b26a00;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14191b;--card:#1d2427;--tx:#e9eeee;--mu:#92a0a4;--ac:#7fb8bd;--ac2:#243a3d;--bd:#2f3a3d;--ok:#6cc08b;--wa:#e0a64a;color-scheme:dark}}
-*{box-sizing:border-box}html,body{margin:0}
-body{background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.45}
-#app{max-width:480px;margin:0 auto;padding:16px 16px 90px}
-h1{font-size:22px;margin:4px 0 2px}h2{font-size:18px;margin:8px 0}.mu{color:var(--mu);font-size:13px}
-.wf{float:right;font-size:11px;color:var(--mu);border:1px dashed var(--bd);border-radius:6px;padding:2px 6px}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:10px 0}
-.btn{display:block;width:100%;padding:13px;border-radius:12px;border:0;background:var(--ac);color:var(--bg);font-size:16px;font-weight:600;cursor:pointer;margin-top:10px}
-.btn.s{background:var(--ac2);color:var(--ac)}
-input,select{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font:inherit;margin:6px 0}
-label{font-size:13px;font-weight:600;display:block;margin-top:8px}
+:root{--bg:#f4f3ee;--card:#fff;--tx:#17252a;--mu:#66757a;--ac:#2f5d62;--ac-d:#1f4448;--ac2:#e3eeed;--bd:#e4e2d9;--ok:#2e7d4f;--ok2:#e3f2e8;--wa:#a35f00;--wa2:#fdf0dc;--er:#b3261e;
+--sh:0 1px 2px rgba(23,37,42,.05),0 4px 14px rgba(23,37,42,.06);--hero:linear-gradient(135deg,#2f5d62 0%,#3f7a73 55%,#5e9a86 100%);--nav:rgba(255,255,255,.86);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111618;--card:#1b2225;--tx:#e9eeee;--mu:#93a2a6;--ac:#86c3c3;--ac-d:#a6d6d4;--ac2:#22393b;--bd:#2a3437;--ok:#6cc08b;--ok2:#1d3326;--wa:#e5ab52;--wa2:#3a2c16;--er:#f2b8b5;
+--sh:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);--hero:linear-gradient(135deg,#1d3d40 0%,#25504c 60%,#2f5f52 100%);--nav:rgba(27,34,37,.86);color-scheme:dark}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.45;overscroll-behavior-y:none;-webkit-font-smoothing:antialiased}
+#app{max-width:480px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(100px + env(safe-area-inset-bottom,0px))}
+#app.in>*{animation:in .22s ease-out both}@keyframes in{from{opacity:0;transform:translateY(4px)}}
+@media (prefers-reduced-motion:reduce){#app.in>*{animation:none}}
+h1{font-size:24px;font-weight:750;letter-spacing:-.02em;margin:6px 0 2px}h2{font-size:17px;font-weight:700;letter-spacing:-.01em;margin:22px 0 4px}
+.mu{color:var(--mu);font-size:13px}.c{text-align:center}
+.wf{float:right;font-size:10px;letter-spacing:.02em;color:var(--mu);border:1px dashed var(--bd);border-radius:6px;padding:2px 6px;opacity:.8}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:16px;margin:12px 0;color:var(--tx);box-shadow:var(--sh)}
+.hero{background:var(--hero);color:#fff;border-radius:24px;padding:20px 18px 18px;margin:8px 0 14px;box-shadow:0 10px 30px rgba(47,93,98,.25);position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;right:-40px;top:-40px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.08)}
+.hero h1{color:#fff;font-size:26px;margin:0}.hero p{margin:4px 0 14px;color:rgba(255,255,255,.85);font-size:14px}
+.hero .wf{color:rgba(255,255,255,.75);border-color:rgba(255,255,255,.35);position:relative;z-index:1}
+.sbox{display:flex;align-items:center;gap:8px;background:#fff;border-radius:14px;padding:4px 4px 4px 14px;position:relative;z-index:1}
+.sbox input{border:0;margin:0;min-height:46px;padding:0;background:transparent;color:#17252a}.sbox input:focus{outline:none}
+.sbox button{flex:none;border:0;border-radius:11px;background:var(--ac);color:#fff;font:inherit;font-weight:650;padding:0 16px;min-height:44px;cursor:pointer}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sbox{background:var(--card)}:root:not([data-theme="light"]) .sbox input{color:var(--tx)}:root:not([data-theme="light"]) .sbox button{background:#2f5d62}}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:50px;padding:12px;border-radius:14px;border:0;background:var(--ac);color:var(--bg);font:inherit;font-size:16px;font-weight:650;cursor:pointer;margin-top:12px;transition:filter .15s,transform .1s}
+.btn:hover{filter:brightness(1.06)}.btn.s{background:var(--ac2);color:var(--ac)}.btn:disabled{opacity:.55;cursor:wait}
+.btn.ms{background:var(--card);color:var(--tx);border:1px solid var(--bd);box-shadow:var(--sh)}.btn.sm{min-height:38px;font-size:13px;margin:0;width:auto;padding:6px 12px;border-radius:99px}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.act{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:14px;border-radius:18px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font:inherit;cursor:pointer;box-shadow:var(--sh)}
+.act .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:21px;margin-bottom:6px;background:var(--wa2)}
+.act.f .ic{background:var(--ok2)}.act b{font-size:15px}.act span{font-size:12px;color:var(--mu)}
+.hs{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px;margin:0 -2px;scrollbar-width:none}.hs::-webkit-scrollbar{display:none}
+.hs .chip{flex:none}
+.sec{display:flex;align-items:baseline;justify-content:space-between}.sec .lk{text-decoration:none;color:var(--ac);font-weight:600}
+input,select{width:100%;min-height:48px;padding:11px 14px;border-radius:12px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font:inherit;font-size:16px;margin:6px 0;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2)}
+label{font-size:13px;font-weight:650;display:block;margin-top:14px}
+.form{background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:4px 16px 16px;margin:12px 0;box-shadow:var(--sh)}
 .row{display:flex;gap:8px}.row>*{flex:1}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
-.chip{padding:7px 12px;border-radius:99px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-size:14px;cursor:pointer}
-.chip.on{background:var(--ac);color:var(--bg);border-color:var(--ac)}
-.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--ac2);color:var(--ac);font-weight:600}
-.tag.w{color:var(--wa)}.tag.o{color:var(--ok)}
-.item{display:flex;gap:12px;cursor:pointer}
-.th{width:60px;height:60px;border-radius:10px;background:var(--ac2);display:grid;place-items:center;font-size:28px;flex:none;overflow:hidden}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:7px 13px;border-radius:99px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font:inherit;font-size:14px;cursor:pointer;transition:background .15s,border-color .15s}
+.chip.on{background:var(--ac);color:var(--bg);border-color:var(--ac);font-weight:600}
+.sw{display:inline-block;width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(127,127,127,.45);vertical-align:-2px;flex:none}
+.chip.on .sw{box-shadow:0 0 0 2px var(--bg)}
+.tag{display:inline-flex;align-items:center;gap:3px;font-size:12px;padding:3px 9px;border-radius:99px;background:var(--ac2);color:var(--ac);font-weight:600;margin:4px 4px 0 0}
+.tag.w{color:var(--wa);background:var(--wa2)}.tag.o{color:var(--ok);background:var(--ok2)}
+.item{display:flex;gap:14px;align-items:center;cursor:pointer;width:100%;text-align:left;font:inherit;padding:12px}
+.item>div:nth-child(2){flex:1;min-width:0}.item b{font-size:15px}
+.item.card:after{content:"›";font-size:24px;color:var(--mu);flex:none}
+.th{width:64px;height:64px;border-radius:14px;background:var(--ac2);display:grid;place-items:center;font-size:30px;flex:none;overflow:hidden}
 .th img{width:100%;height:100%;object-fit:cover}
-nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--bd);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px)}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav);-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px);border-top:1px solid var(--bd);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
 nav div{display:flex;max-width:480px;width:100%}
-nav button{flex:1;padding:10px 4px;border:0;background:none;color:var(--mu);font:inherit;font-size:12px;cursor:pointer}
-nav button.on{color:var(--ac);font-weight:700}nav span{display:block;font-size:20px}
-.map{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
-.zone{padding:18px 8px;border-radius:12px;border:2px dashed var(--bd);text-align:center;cursor:pointer;background:var(--card);color:var(--tx);font:inherit}
-.zone.on{border-color:var(--ac);background:var(--ac2)}.zone b{display:block;font-size:20px}
-.back{background:none;border:0;color:var(--ac);font:inherit;cursor:pointer;padding:4px 0}
-.toast{background:var(--ac2);color:var(--ac);border-radius:12px;padding:12px;margin:10px 0;font-weight:600}
-.bigimg{width:100%;height:160px;border-radius:12px;background:var(--ac2);display:grid;place-items:center;font-size:56px;overflow:hidden}.bigimg img{width:100%;height:100%;object-fit:cover}
-.lk{background:none;border:0;color:var(--mu);font:inherit;font-size:12px;text-decoration:underline;cursor:pointer;margin-top:16px}
+nav button{flex:1;min-height:60px;padding:8px 4px;border:0;background:none;color:var(--mu);font:inherit;font-size:11px;font-weight:600;cursor:pointer;position:relative}
+nav span{display:block;font-size:20px;line-height:28px;width:52px;margin:0 auto 1px;border-radius:99px;transition:background .2s}
+nav button.on{color:var(--ac)}nav button.on span{background:var(--ac2)}
+.bdg{position:absolute;top:4px;left:calc(50% + 8px);min-width:18px;height:18px;border-radius:9px;background:#e5484d;color:#fff;font-size:11px;font-style:normal;font-weight:700;display:grid;place-items:center;padding:0 5px;box-shadow:0 0 0 2px var(--card)}
+.map{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.zone{padding:16px 8px;border-radius:18px;border:1px solid var(--bd);text-align:center;cursor:pointer;background:var(--card);color:var(--tx);font:inherit;font-weight:600;box-shadow:var(--sh);transition:background .15s,border-color .15s}
+.zone.on{border-color:var(--ac);background:var(--ac2);box-shadow:0 0 0 2px var(--ac) inset}.zone b{display:block;font-size:26px;margin-bottom:4px}
+.zone .mu{font-weight:500}
+.back{background:none;border:0;color:var(--ac);font:inherit;font-weight:600;cursor:pointer;padding:8px 0;min-height:40px}
+.toast{background:var(--ok2);color:var(--ok);border-radius:14px;padding:12px 14px;margin:12px 0;font-weight:600}
+.err{color:var(--er);font-size:14px;font-weight:600;margin-top:8px}
+.bigimg{width:100%;height:200px;border-radius:14px;background:var(--ac2);display:grid;place-items:center;font-size:64px;overflow:hidden}.bigimg img{width:100%;height:100%;object-fit:cover}
+.info{display:grid;gap:8px;margin-top:10px}.info div{display:flex;gap:10px;align-items:flex-start;font-size:14px}.info i{font-style:normal;width:22px;text-align:center;flex:none}
+.lk{background:none;border:0;color:var(--mu);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer;padding:8px 0}
+.acct{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px;font-size:13px;color:var(--mu);flex-wrap:wrap}
+.acct b{color:var(--tx);overflow-wrap:anywhere}
+.card{position:relative}.x{position:absolute;top:8px;right:8px;background:none;border:0;color:var(--mu);font-size:22px;cursor:pointer;line-height:1;min-width:36px;min-height:36px;border-radius:50%}
+.btn:active,.chip:active,.zone:active,.item:active,.act:active{transform:scale(.98)}
+:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+@media (hover:hover){.item:hover,.zone:hover,.act:hover{border-color:var(--ac)}}
 </style>
 </head>
 <body>
 <div id="app"></div>
-<nav><div id="nav"></div></nav>
+<nav aria-label="Main"><div id="nav"></div></nav>
+<script src="shared.js"></script>
 <script>
-const ZONES=[["Library","📚"],["Lecture Hall A","🏫"],["Cafeteria","☕"],["Sports Hall","⚽"],["Dorm","🏠"],["Central Office","🏢"]];
-const CATS=[["Wallet/Cards","👛"],["Electronics","🎧"],["Keys","🔑"],["Bags/Clothing","🎒"],["Bottles/Other","🧴"]];
-const NOMEM="Don’t remember",KEY="uecf-v2";
-const icon=c=>(CATS.find(x=>x[0]==c)||[0,"📦"])[1];
-const SEED=[
-{id:1,name:"Black leather wallet",cat:"Wallet/Cards",zone:"Lecture Hall A",keep:"UE Central Lost & Found",days:20,date:"Today",q:"Which department is on the student ID inside?",a:"computer"},
-{id:2,name:"White wireless earbuds",cat:"Electronics",zone:"Library",keep:"Library Desk",days:12,date:"Yesterday",q:"What colour is the sticker on the case?",a:"blue"},
-{id:3,name:"House keys (bear keyring)",cat:"Keys",zone:"Cafeteria",keep:"Cafeteria Counter",days:6,date:"Today",q:"Which animal is the keyring?",a:"bear"},
-{id:4,name:"Steel tumbler (grey)",cat:"Bottles/Other",zone:"Library",keep:"Library Desk",days:13,date:"Today",q:"What colour is the lid?",a:"black"},
-{id:5,name:"Football boot (single)",cat:"Bags/Clothing",zone:"Sports Hall",keep:"Sports Hall Equipment Room",days:9,date:"3 days ago",q:"Which brand is it?",a:"nike"}];
-let items=SEED.slice(),alerts=[];
-try{const d=JSON.parse(localStorage.getItem(KEY)||"null");if(d){items=d.items;alerts=d.alerts}}catch(_){}
-function save(){try{localStorage.setItem(KEY,JSON.stringify({items,alerts}))}catch(_){}}
-let s={v:"home",q:"",cat:"",zone:"",sel:null,toast:"",photo:"",claim:null,n:""};
+const {ZONES,CATS,NOMEM,COLORS}=Shared,KEY="uecf-v3",SCOPES=["openid","profile","email"];
+const ZN=ZONES.map(z=>z[0]);
+const KEEPS=["Library Desk","Lecture Hall A Office","Cafeteria Counter","Sports Hall Equipment Room","Dorm Reception","UE Central Lost & Found"];
+const SELF="I’m keeping it safe";
+const L={cat:CATS.map(c=>c[0]),zone:[...ZN,NOMEM],fzone:ZN,col:COLORS.map(c=>c[0])};
+const ICON=Object.fromEntries([...CATS,...ZONES]),SW=Object.fromEntries(COLORS);
+const icon=c=>ICON[c]||"📦";
+const esc=t=>String(t??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
 const $=id=>document.getElementById(id);
-const matchFor=a=>items.find(i=>a.cat&&i.cat==a.cat&&(!a.zone||a.zone==NOMEM||i.zone==a.zone));
-function go(v,x={}){Object.assign(s,{v,toast:"",claim:null},x);render();scrollTo(0,0)}
-const pic=(i,c)=>i.photo?`<img src="${i.photo}" alt="">`:icon(i.cat);
-function itemCard(i){return `<div class="card item" onclick="go('detail',{sel:${i.id}})"><div class="th">${pic(i)}</div><div><b>${i.name}</b><div class="mu">Found at ${i.zone} · ${i.date}</div><span class="tag o">📍 ${i.keep}</span> <span class="tag w">${i.days} days left</span></div></div>`}
-function chips(list,key){return `<div class="chips">${list.map(c=>{const n=Array.isArray(c)?c[0]:c;return `<button class="chip ${s[key]==n?'on':''}" onclick="s.${key}=s.${key}==&quot;${n}&quot;?'':&quot;${n}&quot;;render()">${Array.isArray(c)?c[1]+' ':''}${n}</button>`}).join("")}</div>`}
-function results(){const q=s.q.trim().toLowerCase();return items.filter(i=>(!q||i.name.toLowerCase().includes(q))&&(!s.cat||i.cat==s.cat)&&(!s.zone||i.zone==s.zone))}
-function photoBtn(){return `<input type="file" accept="image/*" id="pf" style="display:none" onchange="pickPhoto(this)"><button class="btn s" onclick="$('pf').click()">${s.photo?'✅ Photo added (tap to change)':'📷 Add photo'}</button>${s.photo?`<div class="bigimg" style="height:110px;margin-top:8px"><img src="${s.photo}" alt=""></div>`:''}`}
-function pickPhoto(el){const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,360/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*k;c.height=im.height*k;c.getContext("2d").drawImage(im,0,0,c.width,c.height);s.photo=c.toDataURL("image/jpeg",.7);keepText();render()};im.src=r.result};r.readAsDataURL(f)}
-function keepText(){const a=$('ln')||$('fn');if(a)s.n=a.value}
+const MSLOGO=`<svg width="16" height="16" viewBox="0 0 21 21" aria-hidden="true"><rect width="10" height="10" fill="#f25022"/><rect x="11" width="10" height="10" fill="#7fba00"/><rect y="11" width="10" height="10" fill="#00a4ef"/><rect x="11" y="11" width="10" height="10" fill="#ffb900"/></svg>`;
+
+let items=[],alerts=[],remote=false,CFG=null,MS=null,account=null,installEvt=null;
+let s={v:"home",prev:"home",q:"",cat:"",zone:"",col:"",cols:[],sel:null,toast:"",photo:"",claim:null,f:{},err:"",busy:false,loading:true,exp:null,kp:null};
+
+/* ---------- data: local demo mode (file:// or GitHub Pages) ---------- */
+function loadLocal(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY)||"null")}catch(_){}
+  items=d?d.items:Shared.seed();alerts=d?d.alerts:[];if(!d)saveLocal()}
+function saveLocal(){if(remote)return;try{localStorage.setItem(KEY,JSON.stringify({items,alerts:alerts.map(({match,...a})=>a)}))}catch(_){}}
+function localMatch(){alerts.forEach(a=>{const m=Shared.bestMatch(a,items);a.match=m?{item:m.item,why:m.why}:null})}
+const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+/* ---------- data: live mode (Netlify functions + Microsoft sign-in) ---------- */
+async function api(path,opt={}){const h={"content-type":"application/json"};
+  if(account)h.authorization="Bearer "+await idToken();
+  let r;try{r=await fetch("api/"+path,{method:opt.method||"GET",headers:h,body:opt.body&&JSON.stringify(opt.body)})}catch(_){throw new Error("You seem to be offline. Please try again.")}
+  const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Something went wrong ("+r.status+")");return d}
+async function refresh(){
+  if(remote){try{items=await api("items");alerts=account?await api("alerts"):[];try{localStorage.setItem("uecf-cache",JSON.stringify(items))}catch(_){}}
+    catch(e){s.err=e.message;try{items=JSON.parse(localStorage.getItem("uecf-cache")||"[]")}catch(_){}}}
+  else localMatch();
+  s.loading=false;render()}
+async function doFound(d){
+  if(remote){const r=await api("items",{method:"POST",body:d});items.unshift(r.item);return r.notified}
+  const it={...d,id:newId(),createdAt:new Date().toISOString(),expires:Shared.addDays(Date.now(),d.days)};
+  items.unshift(it);localMatch();saveLocal();return alerts.some(a=>a.match&&a.match.item.id==it.id)}
+async function doLost(d){
+  if(remote){const a=await api("alerts",{method:"POST",body:d});alerts.unshift(a);return a.match}
+  const a={...d,id:newId(),createdAt:new Date().toISOString()};alerts.unshift(a);localMatch();saveLocal();return a.match}
+async function doRemove(id){if(remote)await api("alerts/"+id,{method:"DELETE"});alerts=alerts.filter(a=>a.id!=id);saveLocal()}
+async function doClaim(id,answer){
+  if(remote){const r=await api(`items/${id}/claim`,{method:"POST",body:{answer}});if(r.ok){const i=items.find(x=>x.id==id);if(i)i.claimed=true}return r}
+  const i=items.find(x=>x.id==id);if(!Shared.sameAnswer(answer,i.a))return{ok:false};
+  i.claimed={at:new Date().toISOString()};localMatch();saveLocal();return{ok:true,keep:i.keep}}
+async function doExpiry(id,expires,keep){const i=items.find(x=>x.id==id);
+  if(remote){Object.assign(i,await api("items/"+id,{method:"PATCH",body:{expires,keep}}));return}
+  i.expires=expires;if(keep)i.keep=keep;saveLocal()}
+
+/* ---------- Microsoft sign-in (MSAL, redirect flow – works in installed mobile apps too) ---------- */
+const loadScript=src=>new Promise((ok,no)=>{const e=document.createElement("script");e.src=src;e.onload=ok;e.onerror=()=>no(new Error("Could not load sign-in"));document.head.appendChild(e)});
+async function initAuth(){await loadScript("vendor/msal-browser.min.js");
+  MS=new msal.PublicClientApplication({auth:{clientId:CFG.clientId,authority:CFG.authority,redirectUri:location.origin+location.pathname,navigateToLoginRequestUrl:false},cache:{cacheLocation:"localStorage"}});
+  await MS.initialize();
+  const r=await MS.handleRedirectPromise().catch(e=>{s.err="Sign-in failed: "+e.message;return null});
+  account=r?.account||MS.getActiveAccount()||MS.getAllAccounts()[0]||null;if(account)MS.setActiveAccount(account)}
+function signIn(){if(!MS)return;try{sessionStorage.setItem("uecf-after",JSON.stringify({v:s.v,sel:s.sel,f:s.f,cat:s.cat,zone:s.zone,cols:s.cols}))}catch(_){}
+  MS.loginRedirect({scopes:SCOPES,prompt:"select_account"})}
+function signOut(){MS.logoutRedirect({account,postLogoutRedirectUri:location.origin+location.pathname})}
+async function idToken(){try{let r=await MS.acquireTokenSilent({scopes:SCOPES,account});
+  if(r.idTokenClaims.exp*1000<Date.now()+6e4)r=await MS.acquireTokenSilent({scopes:SCOPES,account,forceRefresh:true});return r.idToken}
+  catch(_){account=null;render();throw new Error("Your sign-in expired. Please sign in again.")}}
+const needLogin=()=>remote&&!account;
+const email=()=>account?(account.idTokenClaims?.email||account.username):"";
+
+/* ---------- helpers ---------- */
+const live=()=>items.filter(i=>!i.claimed);
+const canEdit=i=>remote?!!i.canEdit:true;
+const dots=i=>(i.colors||[]).map(c=>`<i class="sw" title="${c}" aria-label="${c}" style="background:${SW[c]}"></i>`).join("");
+const pic=i=>i.photo?`<img src="${esc(i.photo)}" alt="">`:icon(i.cat);
+const pad=n=>String(n).padStart(2,"0");
+const ymd=d=>{d=new Date(d);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
+const endOf=v=>new Date(v+"T23:59:00").toISOString();
+const fmt=iso=>new Date(iso).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
+function ago(iso){const d=Math.floor((Date.now()-new Date(iso))/Shared.DAY);return d<=0?"Today":d==1?"Yesterday":d+" days ago"}
+function left(i){const d=Shared.daysLeft(i.expires);return d>0?`<span class="tag ${d<=3?"w":""}">${d} day${d==1?"":"s"} left</span>`:`<span class="tag w">Storage period ended</span>`}
+const wf=n=>`<span class="wf">Wireframe ${n}</span>`;
+const toastHtml=()=>s.toast?`<div class="toast" role="status">${s.toast}</div>`:"";
+const errHtml=()=>s.err?`<div class="err" role="alert">${esc(s.err)}</div>`:"";
+function go(v,x={}){if(v=="detail"&&s.v!="detail")s.prev=s.v;
+  if((v=="lost"||v=="found")&&s.v!=v)Object.assign(s,{cat:"",zone:"",cols:[],photo:"",f:{}});
+  Object.assign(s,{v,toast:"",claim:null,err:"",exp:null,kp:null},x);render();const el=$("app");el.classList.remove("in");void el.offsetWidth;el.classList.add("in");scrollTo(0,0)}
+async function run(fn){if(s.busy)return;s.busy=true;s.err="";s.toast="";render();try{await fn()}catch(e){s.err=e.message||String(e)}s.busy=false;render()}
+function itemCard(i){return `<button class="card item" onclick="go('detail',{sel:'${i.id}'})"><div class="th">${pic(i)}</div><div><b>${esc(i.name)}</b> ${dots(i)}<div class="mu">Found at ${esc(i.zone)} · ${ago(i.createdAt)}</div><span class="tag o">📍 ${esc(i.keep)}</span> ${left(i)}</div></button>`}
+function chips(key,lk,multi){return `<div class="chips" role="group">${L[lk].map((n,k)=>{const on=multi?s[key].includes(n):s[key]==n;
+  const pre=lk=="col"?`<i class="sw" style="background:${SW[n]}"></i>`:(ICON[n]?ICON[n]+" ":"");
+  return `<button type="button" class="chip ${on?"on":""}" aria-pressed="${on}" onclick="pick('${key}','${lk}',${k},${!!multi})">${pre}${esc(n)}</button>`}).join("")}</div>`}
+function pick(key,lk,k,multi){const n=L[lk][k];
+  if(multi){const a=s[key],i=a.indexOf(n);i>=0?a.splice(i,1):(a.push(n),a.length>2&&a.shift())}else s[key]=s[key]==n?"":n;render()}
+const field=(k,label,ph,extra="")=>`<label for="f_${k}">${label}</label><input id="f_${k}" value="${esc(s.f[k])}" placeholder="${ph}" oninput="s.f.${k}=this.value" maxlength="80" ${extra}>`;
+function results(){return live().filter(i=>Shared.textMatch(s.q,i)&&(!s.cat||i.cat==s.cat)
+  &&(!s.col||!(i.colors||[]).length||i.colors.some(c=>c==s.col||c=="Multi"))&&(!s.zone||s.zone==NOMEM||i.zone==s.zone))}
+function photoBtn(){return `<input type="file" accept="image/*" id="pf" style="display:none" onchange="pickPhoto(this)"><button type="button" class="btn s" onclick="$('pf').click()">${s.photo?"✅ Photo added (tap to change)":"📷 Take or add a photo"}</button>${s.photo?`<div class="bigimg" style="height:120px;margin-top:8px"><img src="${s.photo}" alt=""></div>`:""}`}
+function pickPhoto(el){const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,360/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*k;c.height=im.height*k;c.getContext("2d").drawImage(im,0,0,c.width,c.height);s.photo=c.toDataURL("image/jpeg",.7);render()};im.src=r.result};r.readAsDataURL(f)}
+function acct(){
+  if(!remote)return `<div class="acct">🧪 Demo mode · data stays on this device. Sign-in and email alerts work on the live site.</div>`;
+  if(!MS)return "";
+  return account?`<div class="acct"><span>Signed in as <b>${esc(email())}</b></span><button class="lk" onclick="signOut()">Sign out</button></div>`
+    :`<div class="acct"><span>Sign in to get email alerts</span><button class="btn ms sm" onclick="signIn()">${MSLOGO} Sign in with Microsoft</button></div>`}
+const gate=msg=>`<div class="card"><b>Sign in first</b><div class="mu">${msg}</div><button class="btn ms" onclick="signIn()">${MSLOGO} Sign in with Microsoft</button><div class="mu c" style="margin-top:6px">Use your UE (Microsoft 365) account.</div></div>`;
+function installBox(){let hide=false;try{hide=localStorage.getItem("uecf-noinstall")}catch(_){}
+  const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+  if(hide||standalone)return "";
+  const x=`<button class="x" aria-label="Hide" onclick="try{localStorage.setItem('uecf-noinstall',1)}catch(_){};render()">×</button>`;
+  if(installEvt)return `<div class="card">${x}<b>📲 Get the app</b><div class="mu">Install UE Campus Finder on your phone’s home screen.</div><button class="btn s" onclick="install()">Install app</button></div>`;
+  if(/iphone|ipad|ipod/i.test(navigator.userAgent))return `<div class="card">${x}<b>📲 Get the app</b><div class="mu">In Safari tap <b>Share</b> → <b>Add to Home Screen</b>.</div></div>`;
+  return ""}
+async function install(){installEvt.prompt();await installEvt.userChoice;installEvt=null;render()}
+
+/* ---------- views (numbered like the lo-fi wireframes) ---------- */
 const V={
-home:()=>`<span class="wf">Wireframe 1</span><h1>UE Campus Finder</h1><div class="mu">Lost something at UE? Check every storage place in one search.</div>
-<div class="card"><input id="hq" placeholder="🔍 What did you lose? (e.g. wallet)" value="${s.q}" oninput="s.q=this.value" onkeydown="if(event.key==='Enter')go('search')">
-<button class="btn" onclick="go('search')">Search all storage places</button></div>
-<div class="row"><button class="btn s" onclick="go('lost',{n:'',photo:''})">😟 I lost something</button><button class="btn s" onclick="go('found',{n:'',photo:''})">🙌 I found something</button></div>
-<h2>Just handed in</h2>${items.slice(0,3).map(itemCard).join("")}
+home:()=>`<div class="hero">${wf(1)}<h1>UE Campus Finder</h1><p>Lost something at UE? Check every storage place in one search.</p>
+<div class="sbox"><span aria-hidden="true">🔍</span><input type="search" id="hq" aria-label="What did you lose?" placeholder="What did you lose? e.g. wallet" value="${esc(s.q)}" oninput="s.q=this.value" onkeydown="if(event.key==='Enter')go('search')" enterkeyhint="search"><button onclick="go('search')">Search</button></div></div>
+${acct()}${installBox()}
+<div class="acts"><button class="act" onclick="go('lost')"><div class="ic">😟</div><b>I lost something</b><span>Get an alert when it turns up</span></button>
+<button class="act f" onclick="go('found')"><div class="ic">🙌</div><b>I found something</b><span>Tell us where you left it</span></button></div>
+<h2>Browse by category</h2><div class="hs">${CATS.map(c=>`<button class="chip" onclick="go('search',{cat:'${c[0]}',q:'',zone:'',col:''})">${c[1]} ${c[0]}</button>`).join("")}</div>
+<div class="sec"><h2>Just handed in</h2><button class="lk" onclick="go('search',{q:'',cat:'',zone:'',col:''})">See all</button></div>${s.loading?`<div class="card mu">Loading…</div>`:live().slice(0,3).map(itemCard).join("")||`<div class="card mu">Nothing handed in yet.</div>`}
 <div class="mu">Library, cafeteria and central office listings, all in one place.</div>
-<button class="lk" onclick="items=SEED.slice();alerts=[];save();render()">Reset demo data</button>`,
-search:()=>{const r=results();return `<span class="wf">Wireframe 2</span><h1>Search</h1><input placeholder="Search by name" value="${s.q}" oninput="s.q=this.value;render(true)" id="sq">
-<label>Category</label>${chips(CATS,'cat')}<label>Where did you lose it? (as much as you remember)</label>${chips([...ZONES.map(z=>z[0]),NOMEM],'zone')}
-<div class="mu">${r.length} found</div>${r.map(itemCard).join("")||`<div class="card">No match yet.<button class="btn" onclick="go('lost',{n:s.q})">Get notified when it’s found</button></div>`}`},
-detail:()=>{const i=items.find(x=>x.id==s.sel);const c=s.claim;return `<span class="wf">Wireframe 3</span><button class="back" onclick="go('search')">← Back</button>
-<div class="card"><div class="bigimg">${pic(i)}</div><h2>${i.name}</h2>
-<div>📍 Currently at: <b>${i.keep}</b></div><div class="mu">Found at ${i.zone} · ${i.date} · moved to the central office or discarded in ${i.days} days</div></div>
-${c===true?`<div class="toast">✅ Verified! Collect it at ${i.keep} with your student ID. (The finder’s contact details stay private.)</div>`:`<div class="card"><b>Is this yours?</b><div class="mu">Answer the ownership question to claim it.</div><label>${i.q}</label><input id="ans" placeholder="Your answer">
-${c===false?'<div class="mu" style="color:var(--wa)">That doesn’t match. Please try again.</div>':''}<button class="btn" onclick="s.claim=$('ans').value.trim().toLowerCase()===&quot;${i.a.toLowerCase()}&quot;;render()">This is mine</button></div>`}`},
-lost:()=>`<span class="wf">Wireframe 4</span><button class="back" onclick="go('home')">← Home</button><h1>I lost something</h1><div class="mu">Register it and we’ll notify you when a matching item is handed in.</div>
-<label>Item name</label><input id="ln" placeholder="e.g. black wallet" value="${s.n}" oninput="s.n=this.value">
-<label>Category</label>${chips(CATS,'cat')}
-<label>Last place you had it (it’s okay if you don’t know)</label>${chips([...ZONES.map(z=>z[0]),NOMEM],'zone')}
+${remote?"":`<button class="lk" onclick="localStorage.removeItem(KEY);loadLocal();localMatch();render()">Reset demo data</button>`}`,
+
+search:()=>{const r=results();return `${wf(2)}<h1>Search</h1>${toastHtml()}<input type="search" id="sq" placeholder="Search by name, brand or colour" value="${esc(s.q)}" oninput="s.q=this.value;render(true)" enterkeyhint="search">
+<div class="mu">Different words are understood: “gray” = grey, “navy” = blue, “AirPods” = earbuds.</div>
+<label>Category</label>${chips("cat","cat")}<label>Colour</label>${chips("col","col")}<label>Where did you lose it? (as much as you remember)</label>${chips("zone","zone")}
+<div class="mu" aria-live="polite">${r.length} found</div>${r.map(itemCard).join("")||`<div class="card">No match yet.<button class="btn" onclick="toLost()">Get notified when it’s found</button></div>`}`},
+
+detail:()=>{const i=items.find(x=>x.id==s.sel);
+  if(!i)return `<button class="back" onclick="go('home')">← Home</button><div class="card">${s.loading?"Loading…":"This item is no longer listed."}</div>`;
+  return `${wf(3)}<button class="back" onclick="go(s.prev)">← Back</button>${toastHtml()}
+<div class="card"><div class="bigimg">${pic(i)}</div><h2 style="margin-top:14px">${esc(i.name)} ${dots(i)}</h2>${left(i)}
+<div class="info"><div><i>📍</i><span>Currently at <b>${esc(i.keep)}</b></span></div><div><i>🔎</i><span>Found at ${esc(i.zone)} · ${ago(i.createdAt)}</span></div>
+${i.brand?`<div><i>🏷️</i><span>${esc(i.brand)}</span></div>`:""}<div><i>⏳</i><span>Kept until <b>${fmt(i.expires)}</b><br><span class="mu">Then it moves to the UE Central Office or is discarded.</span></span></div></div></div>
+${canEdit(i)&&!i.claimed?editor(i):""}${claimBox(i)}`},
+
+lost:()=>`${wf(4)}<button class="back" onclick="go('home')">← Home</button><h1>I lost something</h1><div class="mu">Register it and we’ll ${remote?"email you":"notify you"} when a matching item is handed in.</div>
+${needLogin()?gate("Sign in with your Microsoft account so we can email you when it turns up."):`
+<div class="form">${field("n","Item name","e.g. black wallet")}${field("brand","Brand or distinctive mark (optional)","e.g. Samsung, sticker, initials")}
+<label>Category</label>${chips("cat","cat")}
+<label>Colour <span class="mu">(tap up to 2 – closest match is fine)</span></label>${chips("cols","col",1)}
+<label>Last place you had it (it’s okay if you don’t know)</label>${chips("zone","zone")}
+<label>Photo (optional, e.g. an old photo of it)</label>${photoBtn()}
+${errHtml()}<button class="btn" ${s.busy?"disabled":""} onclick="submitLost()">${s.busy?"Saving…":remote?"Register and email me":"Register and get notified"}</button></div>
+${remote?`<div class="mu c" style="margin-top:6px">Alerts go to ${esc(email())}</div>`:""}`}`,
+
+found:()=>{const keep=s.f.keep||KEEPS[ZN.indexOf(s.zone)]||KEEPS[5];return `${wf(5)}<button class="back" onclick="go('home')">← Home</button><h1>I found something</h1><div class="mu">Just tell us where you left it. The owner can check right away.</div>
+${needLogin()?gate("Sign in so the owner can be notified. Your contact details are never shown to them."):`
+<div class="form">${field("n","Item name","e.g. blue umbrella")}${field("brand","Brand or distinctive mark (optional)","e.g. Nike, sticker, initials")}
+<label>Category</label>${chips("cat","cat")}
+<label>Colour <span class="mu">(tap up to 2)</span></label>${chips("cols","col",1)}
+<label>Where did you find it?</label>${chips("zone","fzone")}
+<label for="fk">Where is it now?</label><select id="fk" onchange="s.f.keep=this.value">${[...KEEPS,SELF].map(o=>`<option ${keep==o?"selected":""}>${o}</option>`).join("")}</select>
+<label for="fd">Keep it for</label><select id="fd" onchange="s.f.days=this.value">${[7,14,30].map(d=>`<option value="${d}" ${(s.f.days||14)==d?"selected":""}>${d} days</option>`).join("")}</select>
 <label>Photo (optional)</label>${photoBtn()}
-<button class="btn" onclick="submitLost()">Register and get notified</button>`,
-found:()=>`<span class="wf">Wireframe 5</span><button class="back" onclick="go('home')">← Home</button><h1>I found something</h1><div class="mu">Just tell us where you left it. The owner can check right away.</div>
-<label>Item name</label><input id="fn" placeholder="e.g. blue umbrella" value="${s.n}" oninput="s.n=this.value">
-<label>Category</label>${chips(CATS,'cat')}<label>Where did you find it?</label>${chips(ZONES.map(z=>z[0]),'zone')}
-<label>Where is it now?</label><select id="fk">${ZONES.map(z=>`<option>${z[0]}</option>`).join("")}<option>I’m keeping it safe</option></select>
-<label>Photo (optional)</label>${photoBtn()}
-<label>Ownership question (a detail only the owner knows)</label><input id="fq" placeholder="e.g. What colour is the handle?"><input id="fa" placeholder="Correct answer (kept private)">
-<button class="btn" onclick="submitFound()">Submit</button>`,
-map:()=>`<span class="wf">Wireframe 6</span><h1>UE Campus Map</h1><div class="mu">Tap a place to see what was found there.</div>
-<div class="map">${ZONES.map(z=>`<button class="zone ${s.zone==z[0]?'on':''}" onclick="s.zone=s.zone==&quot;${z[0]}&quot;?'':&quot;${z[0]}&quot;;render()"><b>${z[1]}</b>${z[0]}<div class="mu">${items.filter(i=>i.zone==z[0]).length} items</div></button>`).join("")}</div>
-${items.filter(i=>!s.zone||i.zone==s.zone).map(itemCard).join("")}`,
-alerts:()=>`<span class="wf">Wireframe 7</span><h1>Alerts</h1>${s.toast?`<div class="toast">${s.toast}</div>`:''}${alerts.length?alerts.map((a,k)=>{const m=matchFor(a);return `<div class="card"><div class="item"><div class="th">${a.photo?`<img src="${a.photo}" alt="">`:icon(a.cat)}</div><div><b>${a.name}</b><div class="mu">${a.cat||'No category'} · ${a.zone||'No place'}</div></div></div>${m?`<div class="toast">🔔 Possible match: ${m.name} → ${m.keep}</div><button class="btn s" onclick="go('detail',{sel:${m.id}})">Check it</button>`:`<span class="tag w">Looking… we’ll notify you</span>`}</div>`}).join(""):'<div class="card mu">You haven’t registered anything yet.</div>'}`
+${field("q","Ownership question (a detail only the owner knows)","e.g. What colour is the handle?")}
+${field("a","Correct answer (kept private)","one or two words, e.g. red",'autocomplete="off"')}
+<div class="mu">Short answers work best. Spelling and similar words (navy = blue) are accepted.</div>
+${errHtml()}<button class="btn" ${s.busy?"disabled":""} onclick="submitFound()">${s.busy?"Saving…":"Submit"}</button></div>`}`},
+
+map:()=>`${wf(6)}<h1>UE Campus Map</h1><div class="mu">Tap a place to see what was found there.</div>
+<div class="map">${ZONES.map((z,k)=>`<button class="zone ${s.zone==z[0]?"on":""}" aria-pressed="${s.zone==z[0]}" onclick="pick('zone','fzone',${k})"><b>${z[1]}</b>${z[0]}<div class="mu">${live().filter(i=>i.zone==z[0]).length} items</div></button>`).join("")}</div>
+${live().filter(i=>!s.zone||s.zone==NOMEM||i.zone==s.zone).map(itemCard).join("")}`,
+
+alerts:()=>`${wf(7)}<h1>Alerts</h1>${toastHtml()}
+${needLogin()?gate("Sign in to see your registered items and get matches by email."):
+(remote?`<div class="mu">📧 Matches are emailed to <b>${esc(email())}</b>${CFG.mail?"":" (email sending is not set up on the server yet)"}.</div>`:`<div class="mu">Demo mode: alerts show here. On the live site they are also emailed to you.</div>`)+
+(alerts.length?alerts.map(a=>{const m=a.match;return `<div class="card"><button class="x" aria-label="Remove alert" onclick="if(confirm('Remove this alert?'))run(()=>doRemove('${a.id}'))">×</button>
+<div class="item"><div class="th">${a.photo?`<img src="${esc(a.photo)}" alt="">`:icon(a.cat)}</div><div><b>${esc(a.name)}</b> ${dots(a)}<div class="mu">${esc(a.cat||"No category")} · ${esc(a.zone||"No place")}</div></div></div>
+${m?`<div class="toast">🔔 Possible match: ${esc(m.item.name)} → ${esc(m.item.keep)}<div class="mu">Why: ${m.why.join(" · ")}</div></div><button class="btn s" onclick="go('detail',{sel:'${m.item.id}'})">Check it</button>`:`<span class="tag w">Looking… we’ll ${remote?"email":"notify"} you</span>`}</div>`}).join("")
+:`<div class="card mu">You haven’t registered anything yet.<button class="btn s" onclick="go('lost')">😟 I lost something</button></div>`)}`
 };
-function submitLost(){const n=$('ln').value.trim();if(!n){alert("Please enter an item name");return}
-const a={name:n,cat:s.cat,zone:s.zone,photo:s.photo};alerts.unshift(a);save();const m=matchFor(a);
-s.cat="";s.zone="";s.photo="";s.n="";go('alerts',{toast:m?"🔔 A similar item has already been handed in!":"✅ Registered. We’ll notify you when it turns up."})}
-function submitFound(){const n=$('fn').value.trim();if(!n||!s.cat||!s.zone){alert("Please enter a name, category and where you found it");return}
-items.unshift({id:Date.now(),name:n,cat:s.cat,zone:s.zone,photo:s.photo,keep:$('fk').value,days:14,date:"Just now",q:$('fq').value||"Describe a detail of the item.",a:$('fa').value.trim()});save();
-const hit=alerts.some(a=>matchFor(a)&&matchFor(a).name==n);
-s.cat="";s.zone="";s.photo="";s.n="";go(hit?'alerts':'search',{q:"",toast:"🔔 Someone who lost a similar item has been notified."})}
+
+function editor(i){const v=s.exp||ymd(i.expires),kp=s.kp||i.keep,today=ymd(Date.now()),max=ymd(Date.now()+365*Shared.DAY);
+  return `<div class="card"><b>✏️ Storage period</b><div class="mu">${remote?"Only the finder and lost & found staff can change this.":"Demo mode: on the live site only the finder and staff can change this."}</div>
+<div class="chips">${[-7,-1,1,7].map(n=>`<button class="chip" onclick="bump(${n})">${n>0?"+":"−"}${Math.abs(n)} day${Math.abs(n)>1?"s":""}</button>`).join("")}</div>
+<label for="exp">Keep until</label><input type="date" id="exp" value="${v}" min="${today}" max="${max}" onchange="s.exp=this.value;render()">
+<div class="mu">${Math.max(v==ymd(i.expires)?Shared.daysLeft(i.expires):Shared.daysLeft(endOf(v)),0)} days from today</div>
+<label for="kp">Stored at</label><select id="kp" onchange="s.kp=this.value">${[...new Set([...KEEPS,i.keep])].map(o=>`<option ${kp==o?"selected":""}>${esc(o)}</option>`).join("")}</select>
+${errHtml()}<button class="btn" ${s.busy?"disabled":""} onclick="saveExp()">${s.busy?"Saving…":"Save changes"}</button></div>`}
+function bump(n){const i=items.find(x=>x.id==s.sel),base=new Date((s.exp||ymd(i.expires))+"T12:00:00");base.setDate(base.getDate()+n);
+  const v=ymd(base);s.exp=v<ymd(Date.now())?ymd(Date.now()):v;render()}
+function saveExp(){const id=s.sel,v=s.exp||ymd(items.find(x=>x.id==id).expires),kp=s.kp;
+  run(async()=>{await doExpiry(id,endOf(v),kp);s.exp=null;s.kp=null;s.toast="✅ Storage period updated."})}
+function claimBox(i){const c=s.claim;
+  if(c&&c.ok)return `<div class="toast">✅ Verified! Collect it at ${esc(c.keep||i.keep)} with your student ID.${remote?" We’ve emailed you the pickup details.":""} (The finder’s contact details stay private.)</div>`;
+  if(i.claimed)return `<div class="card mu">This item has been claimed.</div>`;
+  if(needLogin())return gate("To protect owners, please sign in before claiming. We’ll email you the pickup details.");
+  return `<div class="card"><b>Is this yours?</b><div class="mu">Answer the ownership question to claim it.</div><label for="ans">${esc(i.q)}</label>
+<input id="ans" placeholder="Your answer" value="${esc(s.f.ans)}" oninput="s.f.ans=this.value" onkeydown="if(event.key==='Enter')claim()" autocomplete="off">
+<div class="mu">Capital letters, spelling variants and similar words (navy = blue) are fine.</div>
+${c?`<div class="err">${c.locked?"Too many wrong answers. Please visit the office with your student ID.":"That doesn’t match. Please try again."+(c.left!=null?` (${c.left} tries left)`:"")}</div>`:""}
+${s.err&&!c?errHtml():""}<button class="btn" ${s.busy||c?.locked?"disabled":""} onclick="claim()">${s.busy?"Checking…":"This is mine"}</button></div>`}
+function claim(){const v=($("ans")||{}).value||"";if(!v.trim())return;run(async()=>{s.claim=await doClaim(s.sel,v)})}
+function toLost(){const keep={q:s.q,cat:s.cat,zone:s.zone,col:s.col};go("lost");Object.assign(s,{cat:keep.cat,zone:keep.zone,cols:keep.col?[keep.col]:[]});s.f.n=keep.q;render()}
+function submitLost(){const n=(s.f.n||"").trim();
+  if(!n||!s.cat){s.err="Please enter an item name and pick a category so we can match it.";return render()}
+  run(async()=>{const m=await doLost({name:n,brand:(s.f.brand||"").trim(),cat:s.cat,zone:s.zone,colors:s.cols,photo:s.photo});
+    go("alerts",{toast:m?"🔔 A similar item has already been handed in!":remote?"✅ Registered. We’ll email you when it turns up.":"✅ Registered. We’ll notify you when it turns up."})})}
+function submitFound(){const n=(s.f.n||"").trim(),a=(s.f.a||"").trim();
+  if(!n||!s.cat||!s.zone||!a){s.err="Please add a name, category, where you found it and the private answer.";return render()}
+  const keep=s.f.keep||KEEPS[ZN.indexOf(s.zone)]||KEEPS[5];
+  run(async()=>{const hit=await doFound({name:n,brand:(s.f.brand||"").trim(),cat:s.cat,colors:s.cols,zone:s.zone,keep,days:+(s.f.days||14),photo:s.photo,q:(s.f.q||"").trim()||"Describe a detail of the item.",a});
+    go("search",{q:"",cat:"",zone:"",col:"",toast:hit?"🔔 Someone who lost a similar item has been notified"+(remote?" by email.":"."):"✅ Thanks! The item is now listed."})})}
+
 const NAV=[["home","🏠","Home"],["search","🔍","Search"],["map","🗺️","Map"],["alerts","🔔","Alerts"]];
-function render(keep){const f=keep&&document.activeElement&&document.activeElement.id;const p=f&&document.activeElement.selectionStart;
-$('app').innerHTML=V[s.v]();
-$('nav').innerHTML=NAV.map(n=>`<button class="${s.v==n[0]?'on':''}" onclick="go('${n[0]}')"><span>${n[1]}</span>${n[2]}</button>`).join("");
-if(f){const e=$(f);if(e){e.focus();try{e.setSelectionRange(p,p)}catch(_){}}}}
-render();
+function render(keep){const a=document.activeElement,f=keep&&a&&a.id,p=f&&a.selectionStart;
+  const top=s.err&&!["lost","found","detail"].includes(s.v)?errHtml():"";
+  $("app").innerHTML=top+V[s.v]();
+  const hits=alerts.filter(a=>a.match).length;
+  $("nav").innerHTML=NAV.map(n=>`<button class="${s.v==n[0]?"on":""}" ${s.v==n[0]?'aria-current="page"':""} onclick="go('${n[0]}')"><span>${n[1]}</span>${n[2]}${n[0]=="alerts"&&hits?`<i class="bdg">${hits}</i>`:""}</button>`).join("");
+  if(f){const e=$(f);if(e){e.focus();try{e.setSelectionRange(p,p)}catch(_){}}}}
+
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;render()});
+async function boot(){
+  if(/^https?:$/.test(location.protocol)){
+    if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+    try{const r=await fetch("api/config",{cache:"no-store"});
+      if(r.ok&&(r.headers.get("content-type")||"").includes("json")){CFG=await r.json();remote=!!CFG.clientId}}catch(_){}
+  }
+  if(remote){try{await initAuth()}catch(e){s.err=e.message}}else loadLocal();
+  try{const a=JSON.parse(sessionStorage.getItem("uecf-after")||"null");sessionStorage.removeItem("uecf-after");if(a)Object.assign(s,a)}catch(_){}
+  route();await refresh()}
+function route(){const h=location.hash.match(/^#(item=([\w-]+)|lost|found|search|map|alerts)$/);if(!h)return;
+  history.replaceState(null,"",location.pathname+location.search);if(h[2])go("detail",{prev:"home",sel:h[2]});else go(h[1])}
+addEventListener("hashchange",route);
+render();boot();
 </script>
 </body>
 </html>
