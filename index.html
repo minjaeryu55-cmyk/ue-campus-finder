@@ -19,6 +19,8 @@
 --sh:0 1px 2px rgba(23,37,42,.05),0 4px 14px rgba(23,37,42,.06);--hero:linear-gradient(135deg,#2f5d62 0%,#3f7a73 55%,#5e9a86 100%);--nav:rgba(255,255,255,.86);color-scheme:light}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111618;--card:#1b2225;--tx:#e9eeee;--mu:#93a2a6;--ac:#86c3c3;--ac-d:#a6d6d4;--ac2:#22393b;--bd:#2a3437;--ok:#6cc08b;--ok2:#1d3326;--wa:#e5ab52;--wa2:#3a2c16;--er:#f2b8b5;
 --sh:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);--hero:linear-gradient(135deg,#1d3d40 0%,#25504c 60%,#2f5f52 100%);--nav:rgba(27,34,37,.86);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#111618;--card:#1b2225;--tx:#e9eeee;--mu:#93a2a6;--ac:#86c3c3;--ac-d:#a6d6d4;--ac2:#22393b;--bd:#2a3437;--ok:#6cc08b;--ok2:#1d3326;--wa:#e5ab52;--wa2:#3a2c16;--er:#f2b8b5;
+--sh:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);--hero:linear-gradient(135deg,#1d3d40 0%,#25504c 60%,#2f5f52 100%);--nav:rgba(27,34,37,.86);color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0}
 body{background:var(--bg);color:var(--tx);font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.45;overscroll-behavior-y:none;-webkit-font-smoothing:antialiased}
 #app{max-width:480px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(100px + env(safe-area-inset-bottom,0px))}
@@ -249,15 +251,15 @@ ${field("a","Correct answer (kept private)","one or two words, e.g. red",'autoco
 ${errHtml()}<button class="btn" ${s.busy?"disabled":""} onclick="submitFound()">${s.busy?"Saving…":"Submit"}</button></div>`}`},
 
 map:()=>`${wf(6)}<h1>UE Campus Map</h1><div class="mu">Tap a place to see what was found there.</div>
-<div class="map">${ZONES.map((z,k)=>`<button class="zone ${s.zone==z[0]?"on":""}" aria-pressed="${s.zone==z[0]}" onclick="pick('zone','fzone',${k})"><b>${z[1]}</b>${z[0]}<div class="mu">${live().filter(i=>i.zone==z[0]).length} items</div></button>`).join("")}</div>
+<div class="map">${ZONES.map((z,k)=>`<button class="zone ${s.zone==z[0]?"on":""}" aria-pressed="${s.zone==z[0]}" onclick="pick('zone','fzone',${k})"><b>${z[1]}</b>${z[0]}<div class="mu">${(n=>n+(n==1?" item":" items"))(live().filter(i=>i.zone==z[0]).length)}</div></button>`).join("")}</div>
 ${live().filter(i=>!s.zone||s.zone==NOMEM||i.zone==s.zone).map(itemCard).join("")}`,
 
 alerts:()=>`${wf(7)}<h1>Alerts</h1>${toastHtml()}
 ${needLogin()?gate("Sign in to see your registered items and get matches by email."):
 (remote?`<div class="mu">📧 Matches are emailed to <b>${esc(email())}</b>${CFG.mail?"":" (email sending is not set up on the server yet)"}.</div>`:`<div class="mu">Demo mode: alerts show here. On the live site they are also emailed to you.</div>`)+
-(alerts.length?alerts.map(a=>{const m=a.match;return `<div class="card"><button class="x" aria-label="Remove alert" onclick="if(confirm('Remove this alert?'))run(()=>doRemove('${a.id}'))">×</button>
+(alerts.length?alerts.map(a=>{const m=a.match;return `<div class="card"><button class="x" aria-label="Remove alert" onclick="s.rm='${a.id}';render()">×</button>
 <div class="item"><div class="th">${a.photo?`<img src="${esc(a.photo)}" alt="">`:icon(a.cat)}</div><div><b>${esc(a.name)}</b> ${dots(a)}<div class="mu">${esc(a.cat||"No category")} · ${esc(a.zone||"No place")}</div></div></div>
-${m?`<div class="toast">🔔 Possible match: ${esc(m.item.name)} → ${esc(m.item.keep)}<div class="mu">Why: ${m.why.join(" · ")}</div></div><button class="btn s" onclick="go('detail',{sel:'${m.item.id}'})">Check it</button>`:`<span class="tag w">Looking… we’ll ${remote?"email":"notify"} you</span>`}</div>`}).join("")
+${m?`<div class="toast">🔔 Possible match: ${esc(m.item.name)} → ${esc(m.item.keep)}<div class="mu">Why: ${m.why.join(" · ")}</div></div><button class="btn s" onclick="go('detail',{sel:'${m.item.id}'})">Check it</button>`:`<span class="tag w">Looking… we’ll ${remote?"email":"notify"} you</span>`}${s.rm==a.id?`<div class="row" style="margin-top:4px"><button class="btn s" onclick="s.rm=null;render()">Keep</button><button class="btn" onclick="s.rm=null;run(()=>doRemove('${a.id}'))">Remove alert</button></div>`:""}</div>`}).join("")
 :`<div class="card mu">You haven’t registered anything yet.<button class="btn s" onclick="go('lost')">😟 I lost something</button></div>`)}`
 };
 
