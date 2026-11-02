@@ -1,0 +1,13 @@
+{
+  "name": "ue-campus-finder",
+  "private": true,
+  "description": "UE Campus Finder – lost & found web app (static front end + Netlify Functions)",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^10.0.0",
+    "jose": "^6.0.0",
+    "nodemailer": "^7.0.0"
+  }
+}
