@@ -2,104 +2,126 @@
 
 앱은 두 가지 모드로 동작합니다.
 
-| 모드 | 언제 | 데이터 | 로그인/이메일 |
+| 모드 | 언제 | 데이터 | 로그인 / 알림 |
 |---|---|---|---|
-| **데모 모드** | 파일을 직접 열거나 GitHub Pages | 내 기기(localStorage) | 없음 |
-| **라이브 모드** | Netlify + 아래 설정 완료 | 서버(Netlify Blobs) — 모든 사용자 공유 | Microsoft 로그인 + 이메일 알림 |
+| **데모 모드** | 파일을 직접 열거나 GitHub Pages | 내 기기(localStorage) | 이메일만 입력하는 데모 로그인, 이 기기 안에서만 알림 |
+| **라이브 모드** | Netlify + 아래 설정 완료 | 서버(Netlify Blobs) — 모든 사용자 공유 | 진짜 Microsoft 로그인 + 휴대폰 알림 |
 
-라이브 모드는 `/api/config`가 `MS_CLIENT_ID`를 돌려줄 때 자동으로 켜집니다.
+라이브 모드는 Netlify 환경변수에 `MS_CLIENT_ID`가 있으면 자동으로 켜집니다.
+필요한 것은 **① Microsoft 앱 등록 → ② 휴대폰 알림 키 → ③ Netlify 연결** 세 단계입니다.
 
 ---
 
-## 1. Microsoft 로그인 앱 등록 (Microsoft Entra ID)
+## ① Microsoft 로그인 설정 (약 5–10분)
 
-1. https://portal.azure.com → **Microsoft Entra ID** → **App registrations** → **New registration**
-   - 개인 Microsoft 계정만 있다면 무료 Azure 계정을 먼저 만들어야 할 수 있습니다.
-2. 이름: `UE Campus Finder`
-3. **Supported account types**: *Accounts in any organizational directory and personal Microsoft accounts*
-   (학교 계정만 허용하려면 *this organizational directory only* 대신 아래 `ALLOWED_EMAIL_DOMAINS`를 쓰는 걸 추천)
-4. **Redirect URI**: 플랫폼 **Single-page application (SPA)** 선택 →
-   `https://lambent-pavlova-1fa1a2.netlify.app/`
-   (로컬 테스트용으로 `http://localhost:8888/` 도 추가)
-5. **Register** → 화면의 **Application (client) ID** 복사 → 아래 `MS_CLIENT_ID`에 넣습니다.
+Microsoft에 “UE Campus Finder라는 앱이 Microsoft 로그인을 써도 된다”고 등록하고, **Client ID**(앱 번호)를 받는 단계입니다.
 
-> 학교(UE) 테넌트가 외부 앱 동의를 막아 두면 로그인 시 “관리자 승인 필요”가 뜰 수 있습니다.
-> 그 경우 학교 IT에 승인을 요청하거나, 데모 때는 개인 Microsoft 계정(outlook.com 등)으로 시연하세요.
+### 1. 등록 화면 열기
+1. https://entra.microsoft.com 에 접속해 로그인합니다.
+   - **먼저 학교(UE) 계정으로 시도**해 보세요. 학생도 앱을 등록할 수 있게 열어 둔 학교가 많습니다.
+   - “권한이 없습니다 / You do not have access”가 나오면 **개인 Microsoft 계정**(outlook.com, hotmail.com 등)으로 로그인합니다.
+     개인 계정은 디렉터리가 없어서 막힐 수 있는데, 그때는 https://azure.microsoft.com/free 에서 **무료 Azure 계정**을 만든 뒤 다시 들어옵니다. (본인 확인용 카드 등록이 필요할 수 있지만 무료 범위에서는 요금이 나가지 않습니다.)
+2. 왼쪽 메뉴에서 **Applications(애플리케이션) → App registrations(앱 등록)** 을 누릅니다.
+   (portal.azure.com 에서는 검색창에 “App registrations” 입력)
+3. 위쪽 **+ New registration(새 등록)** 을 누릅니다.
 
-## 2. 알림 이메일 발송 계정 (SMTP)
+### 2. 등록 정보 입력
+| 항목 | 입력값 |
+|---|---|
+| **Name(이름)** | `UE Campus Finder` — 로그인 화면에 이 이름이 보입니다 |
+| **Supported account types(지원되는 계정 유형)** | **Accounts in any organizational directory and personal Microsoft accounts** (모든 조직 디렉터리의 계정 및 개인 Microsoft 계정) |
+| **Redirect URI(리디렉션 URI)** | 플랫폼 드롭다운에서 **Single-page application (SPA)** 선택 → `https://lambent-pavlova-1fa1a2.netlify.app/` |
 
-가장 쉬운 방법은 Gmail 앱 비밀번호입니다.
+> ⚠️ 플랫폼은 반드시 **Single-page application (SPA)** 이어야 합니다. “Web”을 고르면 로그인 후 오류가 납니다.
+> ⚠️ 주소 끝의 `/` 까지 정확히 똑같이 넣으세요.
 
-1. Google 계정 → 보안 → **2단계 인증** 켜기
-2. https://myaccount.google.com/apppasswords → 앱 비밀번호 생성 (16자리)
-3. 아래 `SMTP_*` 환경변수에 입력
+**Register(등록)** 를 누릅니다.
 
-## 2-1. 휴대폰 알림 키 (Web Push, VAPID)
+### 3. Client ID 복사
+등록이 끝나면 **Overview(개요)** 화면이 열립니다.
+**Application (client) ID** (예: `1a2b3c4d-1111-2222-3333-444455556666`) 옆의 복사 버튼을 눌러 저장해 둡니다. → ③에서 `MS_CLIENT_ID`로 씁니다.
 
-터미널에서 한 번만 실행:
+- Client ID는 비밀번호가 아닙니다. 노출돼도 괜찮습니다.
+- **Client secret(비밀 키)은 만들 필요가 없습니다.** 이 앱은 비밀 키 없이 동작합니다.
+- **API permissions(API 사용 권한)도 바꿀 필요가 없습니다.** 기본값(User.Read)이면 됩니다. 앱은 로그인, 이름, 이메일 주소만 사용합니다.
+
+### 4. (선택) 로컬 테스트 주소 추가
+**Authentication(인증)** → Single-page application 아래 **Add URI** → `http://localhost:8888/` 추가 → Save.
+
+### 5. (선택) 로고
+**Branding & properties(브랜딩 및 속성)** 에서 `icon-512.png`를 로고로 올리면 로그인 동의 화면에 앱 아이콘이 보입니다.
+
+### 사용자가 보게 되는 로그인 화면
+1. 앱에서 **Sign in → Sign in with Microsoft**
+2. Microsoft 로그인 페이지 → 학교 계정 선택
+3. 처음 한 번만 **“UE Campus Finder에서 다음 권한을 요청합니다: 로그인, 기본 프로필 보기, 이메일 주소 보기”** → **Accept(수락)**
+4. 앱으로 돌아오면 홈에 “Signed in as …”가 보임 (따로 회원가입 없음 – 첫 로그인 = 가입)
+
+### 자주 나오는 오류
+| 오류 | 원인 / 해결 |
+|---|---|
+| **AADSTS50011** (redirect URI mismatch) | 등록한 Redirect URI가 사이트 주소와 다름 → ②의 주소를 끝의 `/`까지 똑같이 |
+| **AADSTS9002326** | 플랫폼을 “Web”으로 등록함 → Authentication에서 SPA로 다시 추가 |
+| **관리자 승인 필요 / Need admin approval** | 학교가 외부 앱 동의를 막아 둠 → 학교 IT에 승인 요청, 또는 시연 때 개인 Microsoft 계정 사용 |
+| “unverified(확인되지 않음)” 표시 | 정상입니다. 게시자 인증을 안 한 앱에 항상 붙는 표시입니다 |
+
+---
+
+## ② 휴대폰 알림 키 (VAPID)
+
+휴대폰 알림을 보내려면 키 한 쌍이 필요합니다. Node.js가 설치된 컴퓨터에서 한 번만 실행:
 
 ```bash
 npx web-push generate-vapid-keys
 ```
 
-나오는 **Public Key**와 **Private Key**를 아래 `VAPID_*` 환경변수에 넣습니다. (Private Key는 절대 GitHub에 올리지 마세요.)
+나오는 **Public Key**와 **Private Key**를 ③에서 넣습니다. (Private Key는 GitHub에 올리지 마세요.)
 
-## 3. Netlify 연결 (드래그&드롭 → Git 배포로 변경)
+---
 
-서버 함수(`netlify/functions`)는 **드래그&드롭 배포로는 동작하지 않습니다.** GitHub 저장소를 연결해야 합니다.
+## ③ Netlify 연결 (약 5분)
 
-1. Netlify → 기존 사이트(lambent-pavlova-1fa1a2) → **Site configuration → Build & deploy → Link repository**
-   → GitHub `minjaeryu55-cmyk/ue-campus-finder` 선택, 브랜치 `main`
-2. 빌드 설정은 `netlify.toml`에 들어 있으므로 비워 두면 됩니다.
+서버 기능(`netlify/functions`)은 **드래그&드롭 배포로는 동작하지 않습니다.** GitHub 저장소를 연결해야 합니다.
+
+1. Netlify → 사이트(lambent-pavlova-1fa1a2) → **Site configuration → Build & deploy → Link repository**
+   → GitHub `minjaeryu55-cmyk/ue-campus-finder`, 브랜치 `main`
+2. 빌드 설정은 `netlify.toml`에 있으므로 비워 둡니다.
 3. **Site configuration → Environment variables** 에 추가:
 
-| 변수 | 예시 | 필수 |
+| 변수 | 값 | 필수 |
 |---|---|---|
-| `MS_CLIENT_ID` | `1a2b3c4d-....` | ✅ |
-| `MS_TENANT` | `common` (기본값) | |
-| `SMTP_HOST` | `smtp.gmail.com` | ✅ (이메일) |
-| `SMTP_PORT` | `465` | |
-| `SMTP_USER` | `ue.campus.finder@gmail.com` | ✅ (이메일) |
-| `SMTP_PASS` | Gmail 앱 비밀번호 16자리 | ✅ (이메일) |
-| `MAIL_FROM` | `UE Campus Finder <ue.campus.finder@gmail.com>` | |
-| `APP_URL` | `https://lambent-pavlova-1fa1a2.netlify.app` | |
-| `VAPID_PUBLIC_KEY` | 위에서 만든 Public Key | ✅ (휴대폰 알림) |
-| `VAPID_PRIVATE_KEY` | 위에서 만든 Private Key | ✅ (휴대폰 알림) |
-| `VAPID_SUBJECT` | `mailto:ue.campus.finder@gmail.com` | |
-| `ALLOWED_EMAIL_DOMAINS` | `ue-germany.de,stud.ue-germany.de` | 학교 계정만 허용할 때 |
-| `ADMIN_EMAILS` | `lostandfound@ue-germany.de` | 분실물 센터 직원 (모든 물건의 보관기간 수정 가능) |
+| `MS_CLIENT_ID` | ①에서 복사한 Application (client) ID | ✅ |
+| `VAPID_PUBLIC_KEY` | ②의 Public Key | ✅ |
+| `VAPID_PRIVATE_KEY` | ②의 Private Key | ✅ |
+| `ADMIN_EMAILS` | 분실물 센터 직원 이메일 (쉼표로 구분) – 모든 물건의 보관기간 수정 가능 | |
+| `ALLOWED_EMAIL_DOMAINS` | 예: `ue-germany.de` – 이 도메인 계정만 로그인 허용 | |
+| `MS_TENANT` | 기본 `common` (보통 그대로) | |
 
 4. **Deploys → Trigger deploy**
 
-## 4. 동작 확인
-
-1. 사이트 접속 → 홈 상단에 **Sign in with Microsoft** 버튼이 보이면 라이브 모드
-2. 계정 A로 로그인 → *I lost something* 등록 (카테고리·색상 선택)
-3. 계정 B로 로그인 → 같은 카테고리/색상의 물건을 *I found something*으로 등록
-4. 계정 A 메일함에 “Possible match for your …” 메일 도착 → 링크를 누르면 해당 물건 상세 화면이 열림
-5. 계정 A 휴대폰에서 Alerts → **Turn on notifications** 를 켜 두었다면 휴대폰 알림도 옴
-   - Android: Chrome에서 바로 가능 / iPhone: 홈 화면에 추가한 앱에서만 가능 (iOS 16.4+)
+## 동작 확인
+1. 사이트 접속 → **Sign in** → Microsoft 로그인 → 홈에 “Signed in as …”
+2. 휴대폰 A: 로그인 → *I lost something* 등록 → Alerts에서 **Turn on notifications**
+   - Android: Chrome에서 바로 가능 / iPhone: 공유 → **홈 화면에 추가**한 앱에서만 가능 (iOS 16.4+)
+3. 휴대폰 B(다른 계정): 같은 카테고리·색상의 물건을 *I found something*으로 등록
+4. 휴대폰 A에 “🔔 Possible match …” 알림 → 누르면 그 물건 화면이 열림
 
 ## 누가 무엇을 할 수 있나
+- 비로그인: 검색·지도·상세 보기
+- 로그인 사용자: 분실 등록(→ 휴대폰 알림), 습득 등록, 소유권 질문에 답해 수령 신청
+- 습득자 본인 / `ADMIN_EMAILS`: 보관기간(날짜)과 보관 장소 수정
+- 수령 신청은 사용자당 물건별 5번까지 틀릴 수 있음. 정답과 습득자 정보는 서버 밖으로 나가지 않음
 
-- 비로그인: 검색·지도·상세 보기만 가능
-- 로그인 사용자: 분실 등록(→ 이메일 알림), 습득 등록, 소유권 질문에 답해 수령 신청
-- 습득자 본인 / `ADMIN_EMAILS`: 상세 화면에서 **보관기간(날짜)과 보관 장소 수정**
-- 수령 신청은 사용자당 물건별 5번까지 틀릴 수 있음. 정답·습득자 이메일은 서버 밖으로 나가지 않음
+## 알림이 오는 경우
+- 내 분실물과 비슷한 물건이 등록됨 (물건마다 한 번)
+- 내가 등록한 습득물의 주인이 확인됨
+- 매칭된 물건의 보관기간이 3일 이하로 남음 (`netlify/functions/reminders.mjs`가 하루 한 번 자동 실행)
+
+## 보관 장소 운영시간 바꾸기
+`shared.js`의 `PLACES`에 위치와 운영시간이 있습니다. 지금 값은 **예시**이니 실제 시간으로 바꿔 주세요. (요일 숫자: 0=일, 1=월 … 6=토)
 
 ## 테스트
-
 ```bash
 npm install
 npm test
 ```
-
-## 보관 장소 운영시간 바꾸기
-
-각 보관 장소의 위치와 운영시간은 `shared.js`의 `PLACES`에 있습니다. 지금 값은 **예시**이니 실제 시간으로 바꿔 주세요.
-(요일 숫자: 0=일, 1=월 … 6=토)
-
-## 보관기간 마감 리마인더
-
-`netlify/functions/reminders.mjs`가 Netlify에서 **하루 한 번 자동 실행**됩니다.
-매칭된 물건의 보관기간이 3일 이하로 남으면 주인에게 이메일과 휴대폰 알림을 한 번 보냅니다. 따로 설정할 것은 없습니다.

@@ -1,14 +1,13 @@
-// Runs the API function in memory: fake Microsoft tokens, fake mailbox, in-memory blob store.
+// Runs the API function in memory: fake Microsoft tokens, fake push service, in-memory blob store.
 import test from "node:test";
 import assert from "node:assert/strict";
 import api, { setTestHooks } from "../netlify/functions/api.mjs";
 
-const data = new Map(), mails = [], pushes = [];
+const data = new Map(), pushes = [];
 process.env.MS_CLIENT_ID = "test-client";
 process.env.ADMIN_EMAILS = "staff@ue.de";
 setTestHooks({
   store: () => ({ get: async k => (data.has(k) ? JSON.parse(data.get(k)) : null), setJSON: async (k, v) => data.set(k, JSON.stringify(v)) }),
-  mailer: async m => mails.push(m),
   pusher: async (sub, body) => { if (sub.endpoint.includes("gone")) { const e = new Error("gone"); e.statusCode = 410; throw e; } pushes.push({ to: sub.endpoint, ...JSON.parse(body) }); },
   verify: async t => { const [oid, email] = t.split("|"); if (!email) throw new Error("bad"); return { oid, email, name: oid }; }
 });
@@ -38,26 +37,24 @@ test("phone notification subscription", async () => {
   assert.equal((await call("POST", "push/subscribe", OWNER, { subscription: { ...sub, endpoint: "https://push.example/gone" } })).body.devices, 2);
 });
 
-test("lost report + later found item -> one email to the owner", async () => {
+test("lost report + later found item -> one phone notification to the owner", async () => {
   const a = await call("POST", "alerts", OWNER, { name: "Navy umbrella", cat: "Bags/Clothing", colors: ["Blue"], zone: "Dorm" });
   assert.equal(a.status, 201); assert.equal(a.body.match, null);
   const f = await call("POST", "items", FINDER, { name: "umbrella", cat: "Bags/Clothing", colors: ["Blue"], zone: "Dorm", keep: "Dorm Reception", a: "red handle", q: "Handle colour?" });
   assert.equal(f.status, 201); assert.equal(f.body.notified, true);
-  assert.equal(mails.length, 1); assert.equal(mails[0].to, "owner@ue.de"); assert.match(mails[0].text, /Dorm Reception/);
-  assert.equal(pushes.length, 1); assert.equal(pushes[0].to, "https://push.example/owner"); assert.match(pushes[0].url, /#item=/);
+  assert.equal(pushes.length, 1); assert.match(pushes[0].body, /Dorm Reception/); assert.equal(pushes[0].to, "https://push.example/owner"); assert.match(pushes[0].url, /#item=/);
   assert.equal(JSON.parse(data.get("subs"))["u1"].length, 1, "expired device removed");
   const again = await call("GET", "alerts", OWNER);
   assert.equal(again.body[0].match.item.name, "umbrella");
-  // a different-colour item must NOT trigger another mail
+  // a different-colour item must NOT trigger another notification
   await call("POST", "items", FINDER, { name: "umbrella", cat: "Bags/Clothing", colors: ["Red"], zone: "Dorm", a: "x" });
-  assert.equal(mails.length, 1);
+  assert.equal(pushes.length, 1);
   assert.equal((await call("GET", "alerts", OTHER)).body.length, 0, "alerts are private");
 });
 
-test("lost report matching an existing item emails immediately", async () => {
-  const before = mails.length;
+test("lost report matching an existing item is matched immediately", async () => {
   const r = await call("POST", "alerts", OTHER, { name: "grey flask", cat: "Bottles/Other", colors: ["Grey"], zone: "Library" });
-  assert.equal(r.body.match.item.id, "4"); assert.equal(mails.length, before + 1);
+  assert.equal(r.body.match.item.id, "4");
 });
 
 test("storage period: finder and staff can edit, others cannot", async () => {
@@ -77,7 +74,6 @@ test("claim: synonyms accepted, wrong answers limited, claimed item hidden", asy
   assert.deepEqual(bad.body, { ok: false, left: 4 });
   const ok = await call("POST", "items/2/claim", OWNER, { answer: "  Navy! " }); // correct answer is "blue"
   assert.equal(ok.body.ok, true);
-  assert.ok(mails.some(m => m.to === "owner@ue.de" && /Pick up/.test(m.subject)));
   assert.ok(!(await call("GET", "items")).body.some(i => i.id === "2"));
   for (let k = 0; k < 5; k++) await call("POST", "items/3/claim", OTHER, { answer: "cat" });
   assert.equal((await call("POST", "items/3/claim", OTHER, { answer: "bear" })).body.locked, true);
@@ -104,12 +100,11 @@ test("daily reminder: once, only when 1-3 days left", async () => {
   const a = await call("POST", "alerts", OWNER, { name: "bear keys", cat: "Keys", colors: ["Silver"], zone: "Cafeteria" });
   assert.equal(a.body.match.item.id, "3");
   await call("PATCH", "items/3", STAFF, { days: 10 });
-  const n0 = mails.length, p0 = pushes.length;
+  const p0 = pushes.length;
   assert.equal(await runReminders(), 0);
   await call("PATCH", "items/3", STAFF, { days: 2 });
   assert.equal(await runReminders(), 1);
-  assert.match(mails.at(-1).subject, /left to pick up/); assert.match(mails.at(-1).text, /Opening hours/);
-  assert.equal(pushes.length, p0 + 1);
+  assert.equal(pushes.length, p0 + 1); assert.match(pushes.at(-1).title, /2 days left/); assert.match(pushes.at(-1).body, /Mon–Fri/);
   assert.equal(await runReminders(), 0, "only once");
-  assert.equal(mails.length, n0 + 1);
+  assert.equal(pushes.length, p0 + 1);
 });
