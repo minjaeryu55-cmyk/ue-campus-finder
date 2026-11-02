@@ -83,6 +83,10 @@ nav button.on{color:var(--ac)}nav button.on span{background:var(--ac2)}
 .lk{background:none;border:0;color:var(--mu);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer;padding:8px 0}
 .acct{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px;font-size:13px;color:var(--mu);flex-wrap:wrap}
 .acct b{color:var(--tx);overflow-wrap:anywhere}
+.acct.me{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:10px 12px;box-shadow:var(--sh);flex-wrap:nowrap}
+.av{width:36px;height:36px;border-radius:50%;background:var(--ac);color:var(--bg);display:grid;place-items:center;font-weight:750;flex:none}
+.perks{display:grid;gap:12px;margin:4px 0 2px}.perks div{display:flex;gap:12px;align-items:flex-start;font-size:14px}.perks i{font-style:normal;width:34px;height:34px;border-radius:10px;background:var(--ac2);display:grid;place-items:center;flex:none}
+.or{display:flex;align-items:center;gap:10px;color:var(--mu);font-size:12px;margin:14px 0 2px}.or:before,.or:after{content:"";flex:1;height:1px;background:var(--bd)}
 .card{position:relative}.x{position:absolute;top:8px;right:8px;background:none;border:0;color:var(--mu);font-size:22px;cursor:pointer;line-height:1;min-width:36px;min-height:36px;border-radius:50%}
 .btn:active,.chip:active,.zone:active,.item:active,.act:active{transform:scale(.98)}
 :focus-visible{outline:3px solid var(--ac);outline-offset:2px}
@@ -98,19 +102,35 @@ details.wait summary::-webkit-details-marker{display:none}details.wait summary:a
 @keyframes sk{to{background-position:-200% 0}}@media (prefers-reduced-motion:reduce){.sk{animation:none}}
 .desk{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--bd)}.desk:first-of-type{border-top:0}
 .desk>div{min-width:0}
+.cand{display:flex;gap:12px;align-items:center;width:100%;text-align:left;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:14px;padding:10px;margin-top:8px;cursor:pointer}
+.cand.top{background:var(--ok2);border-color:transparent}.cand .th{width:48px;height:48px;font-size:24px}.cand>div:last-child{min-width:0}.cand .tag{margin:0 0 2px;display:table}
+.sel{user-select:all;-webkit-user-select:all;overflow-wrap:anywhere}
+.getapp{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;cursor:pointer}.getapp>span:nth-child(2){flex:1;min-width:0}
+.getapp .go{font-weight:700;color:var(--ac);white-space:nowrap}
+.appic{width:44px;height:44px;flex:none;display:block;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.15)}.appic svg{width:100%;height:100%;display:block}
+.appic.big{width:64px;height:64px;border-radius:16px;position:relative;z-index:1}
+.apphero{display:flex;gap:14px;align-items:center}.apphero>div{position:relative;z-index:1;min-width:0}
+.steps{margin:10px 0;padding-left:0;list-style:none;counter-reset:st;display:grid;gap:10px}
+.steps li{counter-increment:st;display:flex;gap:10px;align-items:flex-start;font-size:15px}
+.steps li:before{content:counter(st);flex:none;width:26px;height:26px;border-radius:50%;background:var(--ac2);color:var(--ac);font-weight:750;display:grid;place-items:center;font-size:13px}
+.key{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 5px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);font-weight:700}
+.qrrow{display:flex;gap:14px;align-items:center;margin-top:10px;flex-wrap:wrap}.qr{width:150px;height:150px;flex:none;background:#fff;border-radius:12px;padding:8px}.qr svg{width:100%;height:100%;display:block}
+.qrrow>div:last-child{flex:1;min-width:160px}.url{font-family:ui-monospace,Menlo,monospace;font-size:12px;margin-top:6px;color:var(--ac)}
 @media (hover:hover){.item:hover,.zone:hover,.act:hover{border-color:var(--ac)}}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <nav aria-label="Main"><div id="nav"></div></nav>
-<script src="shared.js"></script>
+<script src="shared.js?v=5"></script>
 <script>
-const {ZONES,CATS,NOMEM,COLORS}=Shared,KEY="uecf-v3",SCOPES=["openid","profile","email"];
+const {ZONES,CATS,TYPES,NOMEM,COLORS}=Shared,KEY="uecf-v5",SCOPES=["openid","profile","email"];
 const ZN=ZONES.map(z=>z[0]);
-const KEEPS=["Library Desk","Lecture Hall A Office","Cafeteria Counter","Sports Hall Equipment Room","Dorm Reception","UE Central Lost & Found"];
+const KEEPS=["Library Desk","Lecture Room Office","Cafeteria Counter","Sports Hall Equipment Room","UE Central Lost & Found"];
 const SELF="I’m keeping it safe";
-const L={cat:CATS.map(c=>c[0]),zone:[...ZN,NOMEM],fzone:ZN,col:COLORS.map(c=>c[0])};
+const WHEN=[["today","Today",0],["yday","Yesterday",1],["few","2–3 days ago",3],["week","Within a week",7],["","Not sure",null]];
+const L={cat:CATS.map(c=>c[0]),zone:[...ZN,NOMEM],fzone:ZN,col:COLORS.map(c=>c[0]),type:[],when:WHEN.map(w=>w[1])};
+const lostAt=w=>{const x=WHEN.find(v=>v[1]==w);if(!x||x[2]==null)return "";const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-x[2]);return d.toISOString()};
 const ICON=Object.fromEntries([...CATS,...ZONES]),SW=Object.fromEntries(COLORS);
 const icon=c=>ICON[c]||"📦";
 const esc=t=>String(t??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
@@ -118,18 +138,18 @@ const $=id=>document.getElementById(id);
 const MSLOGO=`<svg width="16" height="16" viewBox="0 0 21 21" aria-hidden="true"><rect width="10" height="10" fill="#f25022"/><rect x="11" width="10" height="10" fill="#7fba00"/><rect y="11" width="10" height="10" fill="#00a4ef"/><rect x="11" y="11" width="10" height="10" fill="#ffb900"/></svg>`;
 
 let items=[],alerts=[],remote=false,CFG=null,MS=null,account=null,installEvt=null,swReg=null;
-let s={v:"home",prev:"home",q:"",cat:"",zone:"",col:"",cols:[],sel:null,toast:"",photo:"",claim:null,f:{},err:"",busy:false,loading:true,exp:null,kp:null,op:{},sort:"new"};
+let s={v:"home",prev:"home",q:"",cat:"",zone:"",col:"",cols:[],type:"",when:"",sel:null,toast:"",photo:"",claim:null,f:{},err:"",busy:false,loading:true,exp:null,kp:null,op:{},sort:"new"};
 
 /* ---------- data: local demo mode (file:// or GitHub Pages) ---------- */
 function loadLocal(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY)||"null")}catch(_){}
   items=d?d.items:Shared.seed();alerts=d?d.alerts:[];if(!d)saveLocal()}
-function saveLocal(){if(remote)return;try{localStorage.setItem(KEY,JSON.stringify({items,alerts:alerts.map(({match,...a})=>a)}))}catch(_){}}
-function localMatch(){alerts.forEach(a=>{const m=Shared.bestMatch(a,items);a.match=m?{item:m.item,why:m.why}:null})}
+function saveLocal(){if(remote)return;try{localStorage.setItem(KEY,JSON.stringify({items,alerts:alerts.map(({match,matches,...a})=>a)}))}catch(_){}}
+function localMatch(){alerts.forEach(a=>{a.matches=Shared.matches(a,items).map(m=>({item:m.item,why:m.why,level:m.level}));a.match=a.matches[0]||null})}
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
 /* ---------- data: live mode (Netlify functions + Microsoft sign-in) ---------- */
 async function api(path,opt={}){const h={"content-type":"application/json"};
-  if(account)h.authorization="Bearer "+await idToken();
+  if(remote&&account)h.authorization="Bearer "+await idToken();
   let r;try{r=await fetch("api/"+path,{method:opt.method||"GET",headers:h,body:opt.body&&JSON.stringify(opt.body)})}catch(_){throw new Error("You seem to be offline. Please try again.")}
   const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Something went wrong ("+r.status+")");return d}
 async function refresh(){
@@ -138,24 +158,31 @@ async function refresh(){
   else localMatch();
   s.loading=false;render()}
 async function doFound(d){
-  if(remote){const r=await api("items",{method:"POST",body:d});items.unshift(r.item);return r.notified}
-  const it={...d,id:newId(),createdAt:new Date().toISOString(),expires:Shared.addDays(Date.now(),d.days)};
-  items.unshift(it);localMatch();saveLocal();const hit=alerts.some(a=>a.match&&a.match.item.id==it.id);
-  if(hit&&s.pushOn)localNotify("🔔 Possible match: "+it.name,"Now at "+it.keep+". Tap to check it.","./#item="+it.id);return hit}
+  if(remote){const r=await api("items",{method:"POST",body:d});items.unshift(r.item);return{hit:r.notified,contacts:r.ownerContacts||[]}}
+  const {contact,...rest}=d,it={...rest,finderContact:contact||"",id:newId(),createdAt:new Date().toISOString(),expires:Shared.addDays(Date.now(),d.days)};
+  items.unshift(it);localMatch();saveLocal();const hits=alerts.filter(a=>!a.resolved&&Shared.match(a,it).score>0);
+  if(hits.length&&s.pushOn)localNotify("🔔 Possible match: "+it.name,"Now at "+it.keep+". Tap to check it.","./#item="+it.id);
+  return{hit:hits.length>0,contacts:hits.filter(a=>a.contact).slice(0,3).map(a=>({name:a.name,contact:a.contact}))}}
 async function doLost(d){
   if(remote){const a=await api("alerts",{method:"POST",body:d});alerts.unshift(a);return a.match}
   const a={...d,id:newId(),createdAt:new Date().toISOString()};alerts.unshift(a);localMatch();saveLocal();return a.match}
 async function doRemove(id){if(remote)await api("alerts/"+id,{method:"DELETE"});alerts=alerts.filter(a=>a.id!=id);saveLocal()}
-async function doClaim(id,answer){
-  if(remote){const r=await api(`items/${id}/claim`,{method:"POST",body:{answer}});if(r.ok){const i=items.find(x=>x.id==id);if(i)i.claimed=true;if(r.solved)alerts=await api("alerts")}return r}
+async function doClaim(id,answer,contact){
+  if(remote){const r=await api(`items/${id}/claim`,{method:"POST",body:{answer,contact}});if(r.ok){const i=items.find(x=>x.id==id);if(i)i.claimed=true;if(r.solved)alerts=await api("alerts")}return r}
   const i=items.find(x=>x.id==id);if(!Shared.sameAnswer(answer,i.a))return{ok:false};
-  i.claimed={at:new Date().toISOString()};alerts.forEach(a=>{if(!a.resolved&&Shared.match(a,i).score>0)a.resolved=true});localMatch();saveLocal();return{ok:true,keep:i.keep}}
+  i.claimed={at:new Date().toISOString()};i.ownerContact=contact||"";alerts.forEach(a=>{if(!a.resolved&&Shared.match(a,i).score>0)a.resolved=true});localMatch();saveLocal();return{ok:true,keep:i.keep,finderContact:i.finderContact||""}}
 async function doResolve(id,v){const a=alerts.find(x=>x.id==id);
   if(remote){Object.assign(a,await api("alerts/"+id,{method:"PATCH",body:{resolved:v}}));alerts=await api("alerts");return}
   a.resolved=v;localMatch();saveLocal()}
 async function doExpiry(id,expires,keep){const i=items.find(x=>x.id==id);
   if(remote){Object.assign(i,await api("items/"+id,{method:"PATCH",body:{expires,keep}}));return}
   i.expires=expires;if(keep)i.keep=keep;saveLocal()}
+
+/* ---------- get the app (installable web app: no app store needed) ---------- */
+const SITES={netlify:["https://lambent-pavlova-1fa1a2.netlify.app/","<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 41 41' shape-rendering='crispEdges'><path fill='#ffffff' d='M0 0h41v41H0z'/><path stroke='#000000' d='M4 4.5h7m1 0h1m1 0h1m1 0h2m2 0h2m3 0h2m3 0h7M4 5.5h1m5 0h1m2 0h2m5 0h1m3 0h1m3 0h1m1 0h1m5 0h1M4 6.5h1m1 0h3m1 0h1m1 0h4m1 0h1m1 0h3m3 0h1m1 0h1m2 0h1m1 0h3m1 0h1M4 7.5h1m1 0h3m1 0h1m5 0h1m6 0h1m6 0h1m1 0h3m1 0h1M4 8.5h1m1 0h3m1 0h1m2 0h1m2 0h2m1 0h1m1 0h1m1 0h1m3 0h1m2 0h1m1 0h3m1 0h1M4 9.5h1m5 0h1m1 0h3m2 0h1m1 0h1m1 0h3m1 0h3m2 0h1m5 0h1M4 10.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M13 11.5h1m5 0h2m2 0h2m2 0h2M4 12.5h1m1 0h1m3 0h2m6 0h1m1 0h1m3 0h1m3 0h1m2 0h1m2 0h1m1 0h1M5 13.5h2m2 0h1m1 0h1m1 0h1m3 0h1m1 0h3m1 0h6m1 0h1m2 0h1m1 0h2M4 14.5h3m2 0h4m2 0h2m2 0h1m3 0h2m2 0h2m4 0h2m1 0h1M4 15.5h4m3 0h3m3 0h1m3 0h1m2 0h2m1 0h1m2 0h4m1 0h1M6 16.5h1m3 0h3m1 0h1m2 0h1m1 0h1m1 0h1m3 0h1m1 0h2m1 0h2m4 0h1M5 17.5h3m3 0h1m2 0h2m14 0h1m2 0h1m1 0h2M4 18.5h1m1 0h5m2 0h4m1 0h2m1 0h3m1 0h1m1 0h1m4 0h3m1 0h1M6 19.5h1m1 0h2m3 0h1m2 0h3m3 0h1m4 0h4m1 0h2M5 20.5h4m1 0h4m1 0h2m1 0h2m2 0h3m1 0h1m1 0h1m1 0h2m1 0h1m1 0h1M4 21.5h1m1 0h1m1 0h1m5 0h2m2 0h2m3 0h2m2 0h2m1 0h1m2 0h1m2 0h1M5 22.5h2m2 0h2m3 0h1m3 0h2m1 0h7m1 0h3m1 0h2m1 0h1M5 23.5h2m4 0h4m2 0h2m3 0h3m1 0h1m1 0h2m2 0h2m2 0h1M4 24.5h3m2 0h4m2 0h3m1 0h8m1 0h1m1 0h1M5 25.5h2m1 0h2m2 0h1m2 0h3m2 0h3m1 0h4m1 0h3m1 0h2m1 0h1M4 26.5h7m3 0h1m1 0h1m3 0h2m2 0h2m1 0h2m2 0h1m1 0h2m1 0h1M6 27.5h2m5 0h3m1 0h1m1 0h2m1 0h3m1 0h1m4 0h1m1 0h1m1 0h2M4 28.5h2m1 0h1m2 0h3m1 0h1m1 0h1m3 0h1m1 0h1m4 0h7m1 0h1M12 29.5h1m1 0h2m2 0h9m1 0h1m3 0h1m3 0h1M4 30.5h7m1 0h1m3 0h1m1 0h3m2 0h1m4 0h1m1 0h1m1 0h3m1 0h1M4 31.5h1m5 0h1m2 0h2m1 0h1m1 0h4m3 0h1m1 0h2m3 0h2m2 0h1M4 32.5h1m1 0h3m1 0h1m2 0h2m1 0h1m2 0h1m1 0h1m1 0h1m1 0h1m1 0h6M4 33.5h1m1 0h3m1 0h1m3 0h1m3 0h1m8 0h1m1 0h1m1 0h2m1 0h1m1 0h1M4 34.5h1m1 0h3m1 0h1m1 0h1m2 0h2m1 0h2m1 0h3m1 0h5m1 0h2m1 0h3M4 35.5h1m5 0h1m4 0h4m3 0h1m4 0h2m2 0h3M4 36.5h7m1 0h1m2 0h1m2 0h3m2 0h2m3 0h6m2 0h1'/></svg>"],pages:["https://minjaeryu55-cmyk.github.io/ue-campus-finder/","<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 41 41' shape-rendering='crispEdges'><path fill='#ffffff' d='M0 0h41v41H0z'/><path stroke='#000000' d='M4 4.5h7m1 0h1m1 0h2m6 0h1m3 0h1m3 0h7M4 5.5h1m5 0h1m2 0h2m2 0h2m2 0h2m1 0h1m1 0h1m1 0h1m1 0h1m5 0h1M4 6.5h1m1 0h3m1 0h1m1 0h2m1 0h1m2 0h3m1 0h1m1 0h2m1 0h2m1 0h1m1 0h3m1 0h1M4 7.5h1m1 0h3m1 0h1m2 0h1m2 0h1m1 0h3m1 0h1m2 0h2m3 0h1m1 0h3m1 0h1M4 8.5h1m1 0h3m1 0h1m2 0h1m3 0h4m1 0h5m1 0h1m1 0h1m1 0h3m1 0h1M4 9.5h1m5 0h1m1 0h1m2 0h2m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m5 0h1M4 10.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M13 11.5h1m1 0h2m1 0h1m3 0h3m1 0h2M4 12.5h1m1 0h1m3 0h2m4 0h1m2 0h2m3 0h1m2 0h2m2 0h1m2 0h1m1 0h1M6 13.5h2m1 0h1m6 0h1m2 0h2m1 0h3m1 0h3m1 0h1m2 0h1m2 0h1M7 14.5h1m2 0h1m2 0h1m2 0h8m3 0h4m2 0h2m1 0h1M6 15.5h3m3 0h2m4 0h1m1 0h1m1 0h1m1 0h1m2 0h1m1 0h5m1 0h1M6 16.5h1m1 0h1m1 0h1m1 0h2m1 0h1m1 0h6m1 0h1m5 0h2m3 0h1M4 17.5h3m2 0h1m1 0h2m1 0h1m2 0h2m1 0h4m3 0h2m1 0h2m1 0h4M5 18.5h1m3 0h4m1 0h2m1 0h2m1 0h5m1 0h2m4 0h1m3 0h1M5 19.5h2m4 0h1m2 0h3m2 0h2m1 0h2m4 0h5M4 20.5h1m5 0h1m3 0h1m2 0h2m4 0h2m2 0h2m1 0h2m1 0h1m1 0h1M4 21.5h1m1 0h2m1 0h1m7 0h5m1 0h1m1 0h4m1 0h1m2 0h1m2 0h1M6 22.5h2m2 0h1m2 0h3m3 0h1m3 0h1m1 0h7m1 0h2m1 0h1M4 23.5h1m1 0h1m4 0h1m4 0h3m2 0h1m2 0h1m1 0h4m2 0h2m2 0h1M4 24.5h2m1 0h4m4 0h2m4 0h1m1 0h1m6 0h2M5 25.5h3m1 0h1m1 0h1m3 0h1m2 0h1m2 0h1m1 0h3m1 0h2m1 0h1m2 0h2m1 0h1M4 26.5h2m1 0h1m2 0h1m1 0h2m5 0h1m2 0h2m1 0h4m3 0h1m3 0h1M6 27.5h1m1 0h2m3 0h4m1 0h1m3 0h1m1 0h1m1 0h1m2 0h1m1 0h1m1 0h1M4 28.5h2m3 0h6m2 0h1m1 0h2m1 0h2m3 0h6m3 0h1M12 29.5h3m3 0h3m2 0h1m1 0h2m1 0h1m3 0h1m3 0h1M4 30.5h7m1 0h1m1 0h1m4 0h1m1 0h3m4 0h1m1 0h1m1 0h5M4 31.5h1m5 0h1m3 0h4m1 0h2m1 0h1m1 0h1m2 0h2m3 0h2m2 0h1M4 32.5h1m1 0h3m1 0h1m5 0h1m1 0h7m2 0h6m2 0h2M4 33.5h1m1 0h3m1 0h1m3 0h2m4 0h5m2 0h1m1 0h1m1 0h3m1 0h2M4 34.5h1m1 0h3m1 0h1m1 0h1m1 0h1m3 0h1m1 0h1m2 0h3m1 0h1m1 0h1m1 0h2m1 0h3M4 35.5h1m5 0h1m4 0h1m3 0h2m3 0h1m1 0h8M4 36.5h7m1 0h2m2 0h2m2 0h1m2 0h1m2 0h1m1 0h1m1 0h4m2 0h1'/></svg>"]};
+const APPICON="<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='#2f5d62'/><path d='M256 92c-70 0-126 55-126 124 0 92 126 204 126 204s126-112 126-204c0-69-56-124-126-124z' fill='#f6f5f0'/><circle cx='248' cy='208' r='52' fill='none' stroke='#2f5d62' stroke-width='22'/><path d='M285 246l38 38' stroke='#2f5d62' stroke-width='24' stroke-linecap='round'/></svg>";
+const site=()=>location.host.includes("github.io")?SITES.pages:SITES.netlify;
+const plat=()=>isIOS?"ios":/android/i.test(navigator.userAgent)?"android":"desktop";
 
 /* ---------- phone notifications (Web Push; demo mode shows them on this device only) ---------- */
 const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent),standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone;
@@ -190,9 +217,9 @@ function pushCard(){const st=pushState(),h=`<b>📱 Phone notifications</b>`;if(
   const msg={
     off:`${h}<div class="mu">Get a notification on this phone as soon as a matching item is handed in.</div><button class="btn" ${s.busy?"disabled":""} onclick="enablePush()">Turn on notifications</button>`,
     on:`<div class="sec"><span>${h}<div class="mu">On for this device.</div></span><button class="lk" onclick="disablePush()">Turn off</button></div>`,
-    "ios-install":`${h}<div class="mu">On iPhone, add the app to your Home Screen first: tap <b>Share</b> → <b>Add to Home Screen</b>, then open it from there and turn notifications on.</div>`,
+    "ios-install":`${h}<div class="mu">On iPhone, add the app to your Home Screen first, then open it from there and turn notifications on.</div><button class="btn s" onclick="go('app',{plat:'ios'})">📲 Show me how</button>`,
     denied:`${h}<div class="mu">Notifications are blocked for this site. Allow them in your phone or browser settings.</div>`,
-    unsupported:`${h}<div class="mu">This browser can’t show notifications.${remote?" You’ll still get emails.":""}</div>`,
+    unsupported:`${h}<div class="mu">This browser can’t show notifications. Open the Alerts tab to check for matches.</div>`,
     unconfigured:""}[st];
   return msg?`<div class="card">${msg}</div>`:""}
 
@@ -203,13 +230,22 @@ async function initAuth(){await loadScript("vendor/msal-browser.min.js");
   await MS.initialize();
   const r=await MS.handleRedirectPromise().catch(e=>{s.err="Sign-in failed: "+e.message;return null});
   account=r?.account||MS.getActiveAccount()||MS.getAllAccounts()[0]||null;if(account)MS.setActiveAccount(account)}
-function signIn(){if(!MS)return;try{sessionStorage.setItem("uecf-after",JSON.stringify({v:s.v,sel:s.sel,f:s.f,cat:s.cat,zone:s.zone,cols:s.cols}))}catch(_){}
-  MS.loginRedirect({scopes:SCOPES,prompt:"select_account"})}
-function signOut(){MS.logoutRedirect({account,postLogoutRedirectUri:location.origin+location.pathname})}
+// Every "Sign in" button opens the sign-in screen. Live mode: Microsoft's sign-in page. Demo mode: email only, stored on this device.
+function signIn(){const after={v:s.v=="signin"?"home":s.v,sel:s.sel,f:s.f,cat:s.cat,zone:s.zone,cols:s.cols,type:s.type,when:s.when};
+  try{sessionStorage.setItem("uecf-after",JSON.stringify(after))}catch(_){}s.after=after;go("signin",{f:{}})}
+function doSignIn(){
+  if(remote){if(!MS){s.err="Sign-in is not available right now. Please try again later.";return render()}return MS.loginRedirect({scopes:SCOPES,prompt:"select_account"})}
+  const e=(s.f.em||"").trim().toLowerCase(),n=(s.f.nm||"").trim();
+  if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(e)){s.err="Please enter your university email address.";return render()}
+  account={username:e,name:n||e.split("@")[0],idTokenClaims:{email:e,name:n}};
+  try{localStorage.setItem("uecf-demo-user",JSON.stringify(account));sessionStorage.removeItem("uecf-after")}catch(_){}
+  const a=s.after||{v:"home"};go(a.v,{...a,toast:"👋 Welcome, "+esc(account.name)+"! You’re signed in."});checkPush()}
+function signOut(){if(remote)return MS.logoutRedirect({account,postLogoutRedirectUri:location.origin+location.pathname});
+  account=null;s.pushOn=false;try{localStorage.removeItem("uecf-demo-user")}catch(_){}go("home",{toast:"You’re signed out."})}
 async function idToken(){try{let r=await MS.acquireTokenSilent({scopes:SCOPES,account});
   if(r.idTokenClaims.exp*1000<Date.now()+6e4)r=await MS.acquireTokenSilent({scopes:SCOPES,account,forceRefresh:true});return r.idToken}
   catch(_){account=null;render();throw new Error("Your sign-in expired. Please sign in again.")}}
-const needLogin=()=>remote&&!account;
+const needLogin=()=>!account;
 const email=()=>account?(account.idTokenClaims?.email||account.username):"";
 
 /* ---------- helpers ---------- */
@@ -235,51 +271,79 @@ function share(id){const i=items.find(x=>x.id==id),url=location.origin+location.
 const toastHtml=()=>s.toast?`<div class="toast" role="status">${s.toast}</div>`:"";
 const errHtml=()=>s.err?`<div class="err" role="alert">${esc(s.err)}</div>`:"";
 function go(v,x={}){if(v=="detail"&&s.v!="detail")s.prev=s.v;
-  if((v=="lost"||v=="found")&&s.v!=v)Object.assign(s,{cat:"",zone:"",cols:[],photo:"",f:{}});
+  if((v=="lost"||v=="found")&&s.v!=v)Object.assign(s,{cat:"",zone:"",cols:[],type:"",when:"",photo:"",f:{}});
   Object.assign(s,{v,toast:"",claim:null,err:"",exp:null,kp:null},x);render();const el=$("app");el.classList.remove("in");void el.offsetWidth;el.classList.add("in");scrollTo(0,0)}
 async function run(fn){if(s.busy)return;s.busy=true;s.err="";s.toast="";render();try{await fn()}catch(e){s.err=e.message||String(e)}s.busy=false;render()}
 function itemCard(i){return `<button class="card item" onclick="go('detail',{sel:'${i.id}'})"><div class="th">${pic(i)}</div><div><b>${esc(i.name)}</b> ${dots(i)}<div class="mu">Found at ${esc(i.zone)} · ${ago(i.createdAt)}</div><span class="tag o">📍 ${esc(i.keep)}</span> ${left(i)}</div></button>`}
-function chips(key,lk,multi){return `<div class="chips" role="group">${L[lk].map((n,k)=>{const on=multi?s[key].includes(n):s[key]==n;
+function chips(key,lk,multi){if(lk=="type")L.type=TYPES[s.cat]||[];return `<div class="chips" role="group">${L[lk].map((n,k)=>{const on=multi?s[key].includes(n):s[key]==n;
   const pre=lk=="col"?`<i class="sw" style="background:${SW[n]}"></i>`:(ICON[n]?ICON[n]+" ":"");
   return `<button type="button" class="chip ${on?"on":""}" aria-pressed="${on}" onclick="pick('${key}','${lk}',${k},${!!multi})">${pre}${esc(n)}</button>`}).join("")}</div>`}
 function pick(key,lk,k,multi){const n=L[lk][k];
-  if(multi){const a=s[key],i=a.indexOf(n);i>=0?a.splice(i,1):(a.push(n),a.length>2&&a.shift())}else s[key]=s[key]==n?"":n;render()}
+  if(multi){const a=s[key],i=a.indexOf(n);i>=0?a.splice(i,1):(a.push(n),a.length>2&&a.shift())}else s[key]=s[key]==n?"":n;if(key=="cat"&&!(TYPES[s.cat]||[]).includes(s.type))s.type="";render()}
+// Main colour (index 0) and optional second colour (index 1).
+function colorChips(idx){return `<div class="chips" role="group">${COLORS.map(([n,c],k)=>{const on=s.cols[idx]==n,dis=idx==1&&s.cols[0]==n;
+  return dis?"":`<button type="button" class="chip ${on?"on":""}" aria-pressed="${on}" onclick="pickCol(${idx},${k})"><i class="sw" style="background:${c}"></i>${n}</button>`}).join("")}</div>`}
+function pickCol(idx,k){const n=COLORS[k][0],c=[s.cols[0]||"",s.cols[1]||""];c[idx]=c[idx]==n?"":n;if(idx==0&&c[1]==n)c[1]="";if(!c[0])c[1]="";s.cols=c;render()}
+const colorsOf=()=>[s.cols[0],s.cols[1]].filter(Boolean);
+function colorFields(req){return `<label>Main colour ${req?"":`<span class="mu">(what you see first)</span>`}</label>${colorChips(0)}
+${s.cols[0]?`<label>Second colour <span class="mu">(optional – pattern, logo, lid, strap…)</span></label>${colorChips(1)}`:""}`}
+const typeField=()=>s.cat?`<label>What is it exactly?</label>${chips("type","type")}`:"";
 const field=(k,label,ph,extra="")=>`<label for="f_${k}">${label}</label><input id="f_${k}" value="${esc(s.f[k])}" placeholder="${ph}" oninput="s.f.${k}=this.value" maxlength="80" ${extra}>`;
 function results(){const r=live().filter(i=>Shared.textMatch(s.q,i)&&(!s.cat||i.cat==s.cat)
-  &&(!s.col||!(i.colors||[]).length||i.colors.some(c=>c==s.col||c=="Multi"))&&(!s.zone||s.zone==NOMEM||i.zone==s.zone));
+  &&(!s.type||!i.type||i.type==s.type)&&(!s.col||!(i.colors||[]).length||i.colors.includes(s.col))&&(!s.zone||s.zone==NOMEM||i.zone==s.zone));
   return s.sort=="soon"?r.sort((a,b)=>new Date(a.expires)-new Date(b.expires)):r.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))}
 function photoBtn(){return `<input type="file" accept="image/*" id="pf" style="display:none" onchange="pickPhoto(this)"><button type="button" class="btn s" onclick="$('pf').click()">${s.photo?"✅ Photo added (tap to change)":"📷 Take or add a photo"}</button>${s.photo?`<div class="bigimg" style="height:120px;margin-top:8px"><img src="${s.photo}" alt=""></div>`:""}`}
 function pickPhoto(el){const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,360/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*k;c.height=im.height*k;c.getContext("2d").drawImage(im,0,0,c.width,c.height);s.photo=c.toDataURL("image/jpeg",.7);render()};im.src=r.result};r.readAsDataURL(f)}
-function acct(){
-  if(!remote)return `<div class="acct">🧪 Demo mode · data stays on this device. Sign-in and email alerts work on the live site.</div>`;
-  if(!MS)return "";
-  return account?`<div class="acct"><span>Signed in as <b>${esc(email())}</b></span><button class="lk" onclick="signOut()">Sign out</button></div>`
-    :`<div class="acct"><span>Sign in to get email alerts</span><button class="btn ms sm" onclick="signIn()">${MSLOGO} Sign in with Microsoft</button></div>`}
+function acct(){const demo=remote?"":`<div class="acct">🧪 Demo mode · data stays on this device.</div>`;
+  if(remote&&!MS)return "";
+  return (account?`<div class="acct me"><span class="av" aria-hidden="true">${esc((account.name||email())[0].toUpperCase())}</span><span style="flex:1;min-width:0">Signed in as<br><b>${esc(email())}</b></span><button class="lk" onclick="signOut()">Sign out</button></div>`
+    :`<div class="acct me"><span style="flex:1;min-width:0">Sign in to get phone alerts when your item turns up</span><button class="btn ms sm" onclick="signIn()">${MSLOGO} Sign in</button></div>`)+demo}
 const gate=msg=>`<div class="card"><b>Sign in first</b><div class="mu">${msg}</div><button class="btn ms" onclick="signIn()">${MSLOGO} Sign in with Microsoft</button><div class="mu c" style="margin-top:6px">Use your UE (Microsoft 365) account.</div></div>`;
 function installBox(){let hide=false;try{hide=localStorage.getItem("uecf-noinstall")}catch(_){}
-  const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone;
-  if(hide||standalone)return "";
-  const x=`<button class="x" aria-label="Hide" onclick="try{localStorage.setItem('uecf-noinstall',1)}catch(_){};render()">×</button>`;
-  if(installEvt)return `<div class="card">${x}<b>📲 Get the app</b><div class="mu">Install UE Campus Finder on your phone’s home screen.</div><button class="btn s" onclick="install()">Install app</button></div>`;
-  if(/iphone|ipad|ipod/i.test(navigator.userAgent))return `<div class="card">${x}<b>📲 Get the app</b><div class="mu">In Safari tap <b>Share</b> → <b>Add to Home Screen</b>.</div></div>`;
-  return ""}
+  if(hide||standalone())return "";
+  return `<button class="card getapp" onclick="go('app')"><span class="appic">${APPICON}</span><span><b>Get the app</b><br><span class="mu">Free · installs from your browser · phone alerts</span></span><span class="go">${installEvt?"Install":"How"} ›</span></button>`}
 async function install(){installEvt.prompt();await installEvt.userChoice;installEvt=null;render()}
 
 /* ---------- views (numbered like the lo-fi wireframes) ---------- */
 const V={
+app:()=>{const p=s.plat||plat(),[url,qr]=site(),st=standalone();
+  const tab=(k,l)=>`<button class="chip ${p==k?"on":""}" aria-pressed="${p==k}" onclick="s.plat='${k}';render()">${l}</button>`;
+  const steps=a=>`<ol class="steps">${a.map(x=>`<li><span>${x}</span></li>`).join("")}</ol>`;
+  return `<button class="back" onclick="go('home')">← Home</button>
+<div class="hero apphero"><span class="appic big">${APPICON}</span><div><h1>Get the app</h1><p style="margin:2px 0 0">UE Campus Finder installs straight from your browser. No app store, free, about 10 seconds.</p></div></div>
+${st?`<div class="toast">✅ You’re already using the app.</div>`:installEvt?`<button class="btn" onclick="install()">📲 Install UE Campus Finder</button>`:""}
+<div class="chips" role="group" aria-label="Device">${tab("ios","📱 iPhone")}${tab("android","🤖 Android")}${tab("desktop","💻 Computer")}</div>
+<div class="card">${p=="ios"?`<b>iPhone / iPad</b>${steps(["Open this page in <b>Safari</b>.","Tap the <b>Share</b> button <span class='key'>⬆︎</span> at the bottom of the screen.","Scroll down and tap <b>Add to Home Screen</b>.","Tap <b>Add</b>. Open the app from your Home Screen."])}<div class="mu">Phone notifications on iPhone only work in the app you added to the Home Screen (iOS 16.4 or later).</div>`
+:p=="android"?`<b>Android</b>${installEvt?`<p class="mu">Tap the button above, or:</p>`:""}${steps(["Open this page in <b>Chrome</b>.","Tap the menu <span class='key'>⋮</span> in the top right.","Tap <b>Install app</b> (or <b>Add to Home screen</b>).","Tap <b>Install</b>. The app appears with your other apps."])}`
+:`<b>Scan with your phone</b><div class="qrrow"><div class="qr">${qr}</div><div><div class="mu">Point your phone camera at the code to open the app, then follow the iPhone or Android steps.</div><div class="url sel">${url}</div></div></div>
+<div class="mu" style="margin-top:10px">On this computer: in Chrome or Edge, click the install icon <span class='key'>⊕</span> at the right end of the address bar.</div>`}</div>
+<h2>Why install it?</h2><div class="card perks">
+<div><i>🔔</i><span><b>Phone alerts</b><br><span class="mu">Get notified the moment a matching item is handed in.</span></span></div>
+<div><i>⚡</i><span><b>One tap away</b><br><span class="mu">Opens full-screen from your home screen, like any other app.</span></span></div>
+<div><i>📶</i><span><b>Works offline</b><br><span class="mu">Browse the latest items even with a weak signal.</span></span></div></div>`},
+signin:()=>`<button class="back" onclick="go((s.after||{}).v||'home',s.after||{})">← Back</button>
+<div class="hero"><h1>Sign in</h1><p style="margin-bottom:0">Use your UE student or staff Microsoft account.</p></div>
+<div class="card"><div class="perks">
+<div><i>🔔</i><span><b>Get alerts</b><br><span class="mu">A notification on your phone when a matching item is handed in.</span></span></div>
+<div><i>🙌</i><span><b>Hand in found items</b><br><span class="mu">The owner is told where you left it.</span></span></div>
+<div><i>🔒</i><span><b>Claim safely</b><br><span class="mu">Only the real owner can claim. Your contact is shown only if you add one, and only to signed-in students.</span></span></div></div></div>
+<div class="form">${remote?"":`${field("em","UE email","name@ue-germany.de",'type="email" autocomplete="email" inputmode="email"')}${field("nm","Your name (optional)","e.g. Minjae",'autocomplete="name"')}`}
+${errHtml()}<button class="btn ms" onclick="doSignIn()">${MSLOGO} ${remote?"Sign in with Microsoft":"Continue"}</button>
+<div class="or">New here?</div><div class="mu c">There’s no separate sign-up. Your UE Microsoft account is your account – your profile is created the first time you sign in.</div></div>
+${remote?"":`<div class="mu c">Demo mode: no password needed and nothing leaves this device. On the live site this button opens Microsoft’s own sign-in page.</div>`}`,
 home:()=>`<div class="hero">${wf(1)}<h1>UE Campus Finder</h1><p>Lost something at UE? Check every storage place in one search.</p>
 <div class="sbox"><span aria-hidden="true">🔍</span><input type="search" id="hq" aria-label="What did you lose?" placeholder="What did you lose? e.g. wallet" value="${esc(s.q)}" oninput="s.q=this.value" onkeydown="if(event.key==='Enter')go('search')" enterkeyhint="search"><button onclick="go('search')">Search</button></div></div>
-${acct()}${installBox()}
+${toastHtml()}${acct()}${installBox()}
 <div class="acts"><button class="act" onclick="go('lost')"><div class="ic">😟</div><b>I lost something</b><span>Get an alert when it turns up</span></button>
 <button class="act f" onclick="go('found')"><div class="ic">🙌</div><b>I found something</b><span>Tell us where you left it</span></button></div>
 <h2>Browse by category</h2><div class="hs">${CATS.map(c=>`<button class="chip" onclick="go('search',{cat:'${c[0]}',q:'',zone:'',col:''})">${c[1]} ${c[0]}</button>`).join("")}</div>
 <div class="sec"><h2>Just handed in</h2><button class="lk" onclick="go('search',{q:'',cat:'',zone:'',col:''})">See all</button></div>${s.loading?skel():live().slice(0,3).map(itemCard).join("")||`<div class="card mu">Nothing handed in yet.</div>`}
 <div class="mu">Library, cafeteria and central office listings, all in one place.</div>
-${remote?"":`<button class="lk" onclick="localStorage.removeItem(KEY);loadLocal();localMatch();render()">Reset demo data</button>`}`,
+<div class="row" style="flex-wrap:wrap;gap:4px 16px">${standalone()?"":`<button class="lk" onclick="go('app')">📲 Get the app</button>`}${remote?"":`<button class="lk" onclick="localStorage.removeItem(KEY);loadLocal();localMatch();render()">Reset demo data</button>`}</div>`,
 
 search:()=>{const r=results();return `${wf(2)}<h1>Search</h1>${toastHtml()}<input type="search" id="sq" placeholder="Search by name, brand or colour" value="${esc(s.q)}" oninput="s.q=this.value;render(true)" enterkeyhint="search">
 <div class="mu">Different words are understood: “gray” = grey, “navy” = blue, “AirPods” = earbuds.</div>
-<label>Category</label>${chips("cat","cat")}<label>Colour</label>${chips("col","col")}<label>Where did you lose it? (as much as you remember)</label>${chips("zone","zone")}
+<label>Category</label>${chips("cat","cat")}${s.cat?`<label>Type</label>${chips("type","type")}`:""}<label>Colour</label>${chips("col","col")}<label>Where did you lose it? (as much as you remember)</label>${chips("zone","zone")}
 <div class="sec" style="margin-top:12px"><div class="mu" aria-live="polite">${r.length} found</div><div class="chips" role="group" aria-label="Sort">${[["new","Newest"],["soon","Ending soon"]].map(([k,l])=>`<button class="chip ${(s.sort||"new")==k?"on":""}" aria-pressed="${(s.sort||"new")==k}" onclick="s.sort='${k}';render()">${l}</button>`).join("")}</div></div>${s.loading?skel():""}${r.map(itemCard).join("")||`<div class="card">No match yet.<button class="btn" onclick="toLost()">Get notified when it’s found</button></div>`}`},
 
 detail:()=>{const i=items.find(x=>x.id==s.sel);
@@ -287,25 +351,26 @@ detail:()=>{const i=items.find(x=>x.id==s.sel);
   return `<div class="top"><button class="back" onclick="go(s.prev)">← Back</button><span><button class="btn s sm" onclick="share('${i.id}')">↗ Share</button> ${wf(3)}</span></div>${toastHtml()}
 <div class="card"><div class="bigimg">${pic(i)}</div><h2 style="margin-top:14px">${esc(i.name)} ${dots(i)}</h2>${left(i)}
 <div class="info"><div><i>📍</i><span>Currently at <b>${esc(i.keep)}</b>${Shared.PLACES[i.keep]?`<br><span class="mu">${Shared.PLACES[i.keep].where}</span>`:""}</span></div>
-${Shared.PLACES[i.keep]?`<div><i>🕘</i><span>${pill(i.keep)}<br><span class="mu">${Shared.hoursText(i.keep)}</span></span></div>`:""}<div><i>🔎</i><span>Found at ${esc(i.zone)} · ${ago(i.createdAt)}</span></div>
-${i.brand?`<div><i>🏷️</i><span>${esc(i.brand)}</span></div>`:""}<div><i>⏳</i><span>Kept until <b>${fmt(i.expires)}</b><br><span class="mu">Then it moves to the UE Central Office or is discarded.</span></span></div></div></div>
+${Shared.PLACES[i.keep]?`<div><i>🕘</i><span>${pill(i.keep)}<br><span class="mu">${Shared.hoursText(i.keep)}</span></span></div>`:""}${i.finderContact?`<div><i>📞</i><span>Finder’s contact: <b class="sel">${esc(i.finderContact)}</b></span></div>`:remote&&!account?`<div><i>📞</i><span class="mu">Sign in to see the finder’s contact (if they left one).</span></div>`:""}<div><i>🔎</i><span>Found at ${esc(i.zone)} · ${ago(i.createdAt)}</span></div>
+${i.type||i.brand?`<div><i>🏷️</i><span>${esc([i.type,i.brand].filter(Boolean).join(" · "))}</span></div>`:""}<div><i>⏳</i><span>Kept until <b>${fmt(i.expires)}</b><br><span class="mu">Then it moves to the UE Central Office or is discarded.</span></span></div></div></div>
 ${canEdit(i)&&!i.claimed?editor(i):""}${claimBox(i)}`},
 
-lost:()=>`${wf(4)}<button class="back" onclick="go('home')">← Home</button><h1>I lost something</h1><div class="mu">Register it and we’ll ${remote?"email you":"notify you"} when a matching item is handed in.</div>
-${needLogin()?gate("Sign in with your Microsoft account so we can email you when it turns up."):`
-<div class="form">${field("n","Item name","e.g. black wallet")}${field("brand","Brand or distinctive mark (optional)","e.g. Samsung, sticker, initials")}
-<label>Category</label>${chips("cat","cat")}
-<label>Colour <span class="mu">(tap up to 2 – closest match is fine)</span></label>${chips("cols","col",1)}
+lost:()=>`${wf(4)}<button class="back" onclick="go('home')">← Home</button><h1>I lost something</h1>${toastHtml()}<div class="mu">Register it and we’ll notify you on your phone when a matching item is handed in.</div>
+${needLogin()?gate("Sign in with your Microsoft account so we can notify you when it turns up."):`
+<div class="form">${field("n","Item name","e.g. black wallet")}${field("brand","Brand or distinctive mark (optional)","e.g. Samsung, sticker, initials")}${field("contact","Your contact (optional)","phone, Instagram or WhatsApp",'autocomplete="tel"')}<div class="mu">Shown to signed-in students who hand in a matching item, so they can reach you directly.</div>
+<label>Category</label>${chips("cat","cat")}${typeField()}
+${colorFields()}
+<label>When did you lose it?</label>${chips("when","when")}
 <label>Last place you had it (it’s okay if you don’t know)</label>${chips("zone","zone")}
 <label>Photo (optional, e.g. an old photo of it)</label>${photoBtn()}
-${errHtml()}<button class="btn" ${s.busy?"disabled":""} onclick="submitLost()">${s.busy?"Saving…":remote?"Register and email me":"Register and get notified"}</button></div>
-${remote?`<div class="mu c" style="margin-top:6px">Alerts go to ${esc(email())}</div>`:""}`}`,
+${errHtml()}<button class="btn" ${s.busy?"disabled":""} onclick="submitLost()">${s.busy?"Saving…":"Register and get notified"}</button></div>
+`}`,
 
-found:()=>{const keep=s.f.keep||KEEPS[ZN.indexOf(s.zone)]||KEEPS[5];return `${wf(5)}<button class="back" onclick="go('home')">← Home</button><h1>I found something</h1><div class="mu">Just tell us where you left it. The owner can check right away.</div>
-${needLogin()?gate("Sign in so the owner can be notified. Your contact details are never shown to them."):`
-<div class="form">${field("n","Item name","e.g. blue umbrella")}${field("brand","Brand or distinctive mark (optional)","e.g. Nike, sticker, initials")}
-<label>Category</label>${chips("cat","cat")}
-<label>Colour <span class="mu">(tap up to 2)</span></label>${chips("cols","col",1)}
+found:()=>{const keep=s.f.keep||KEEPS[ZN.indexOf(s.zone)]||KEEPS.at(-1);return `${wf(5)}<button class="back" onclick="go('home')">← Home</button><h1>I found something</h1>${toastHtml()}<div class="mu">Just tell us where you left it. The owner can check right away.</div>
+${needLogin()?gate("Sign in so the owner can be notified on their phone."):`
+<div class="form">${field("n","Item name","e.g. blue umbrella")}${field("brand","Brand or distinctive mark (optional)","e.g. Nike, sticker, initials")}${field("contact","Your contact (optional)","phone, Instagram or WhatsApp",'autocomplete="tel"')}<div class="mu">Shown to signed-in students on this item, so the owner can reach you directly.</div>
+<label>Category</label>${chips("cat","cat")}${typeField()}
+${colorFields(1)}
 <label>Where did you find it?</label>${chips("zone","fzone")}
 <label for="fk">Where is it now?</label><select id="fk" onchange="s.f.keep=this.value">${[...KEEPS,SELF].map(o=>`<option ${keep==o?"selected":""}>${o}</option>`).join("")}</select>
 <label for="fd">Keep it for</label><select id="fd" onchange="s.f.days=this.value">${[7,14,30].map(d=>`<option value="${d}" ${(s.f.days||14)==d?"selected":""}>${d} days</option>`).join("")}</select>
@@ -322,12 +387,12 @@ ${live().filter(i=>!s.zone||s.zone==NOMEM||i.zone==s.zone).map(itemCard).join(""
 <div class="mu">Opening hours are examples for this prototype.</div>`,
 
 alerts:()=>`${wf(7)}<h1>Alerts</h1>${toastHtml()}
-${needLogin()?gate("Sign in to see your registered items and get matches by email."):
-(remote?`<div class="mu">📧 Matches are emailed to <b>${esc(email())}</b>${CFG.mail?"":" (email sending is not set up on the server yet)"}.</div>`:`<div class="mu">Demo mode: alerts show here and as a notification on this device. On the live site they are also emailed to you.</div>`)+pushCard()+
+${needLogin()?gate("Sign in to see your registered items and get phone alerts for matches."):
+`<div class="mu">Matches show here and as a notification on your phone${remote?"":" (demo: on this device only)"}.</div>`+pushCard()+
 (alerts.length?alerts.map((a,ai)=>{const m=a.match,cl=Shared.CHECKLIST[a.cat]||[],done=(checks[a.id]||[]).length;return `<div class="card ${a.resolved?"done":""}"><button class="x" aria-label="Remove alert" onclick="s.rm='${a.id}';render()">×</button>
-<div class="item"><div class="th">${a.photo?`<img src="${esc(a.photo)}" alt="">`:icon(a.cat)}</div><div><b>${esc(a.name)}</b> ${dots(a)}<div class="mu">${esc(a.cat||"No category")} · ${esc(a.zone||"No place")}</div></div></div>
+<div class="item"><div class="th">${a.photo?`<img src="${esc(a.photo)}" alt="">`:icon(a.cat)}</div><div><b>${esc(a.name)}</b> ${dots(a)}<div class="mu">${esc(a.type||a.cat||"No category")} · ${esc(a.zone||"No place")}</div></div></div>${m?`<div class="mu" style="margin:10px 0 2px;font-weight:650">${(a.matches||[m]).length>1?(a.matches.length+" items could be yours – most likely first"):"This could be yours"}</div>`:""}
 ${a.resolved?`<div class="sec" style="margin-top:8px"><span class="tag o">✅ Found – no more alerts</span><button class="lk" onclick="run(()=>doResolve('${a.id}',false))">Still missing?</button></div>`:
-`${m?`<div class="toast">🔔 Possible match: ${esc(m.item.name)} → ${esc(m.item.keep)}<div class="mu">Why: ${m.why.join(" · ")}</div></div><button class="btn s" onclick="go('detail',{sel:'${m.item.id}'})">Check it</button>`:`<span class="tag w">Looking… we’ll ${remote?"email":"notify"} you</span>`}
+`${m?(a.matches||[m]).map((x,k)=>`<button class="cand ${k?"":"top"}" onclick="go('detail',{sel:'${x.item.id}'})"><div class="th">${pic(x.item)}</div><div><span class="tag ${x.level=="Strong match"?"o":"w"}">${x.level=="Strong match"?"✓ Strong match":"Possible match"}</span><b>${esc(x.item.name)}</b> ${dots(x.item)}<div class="mu">📍 ${esc(x.item.keep)} · ${x.why.join(" · ")}</div></div></button>`).join(""):`<span class="tag w">Looking… we’ll notify you</span>`}
 ${cl.length?`<details class="wait" ${(s.op[a.id]??(ai==0&&done<cl.length))?"open":""} ontoggle="s.op['${a.id}']=this.open"><summary>While you wait · ${done}/${cl.length} done</summary>${cl.map((c,k)=>`<label class="chk"><input type="checkbox" ${(checks[a.id]||[]).includes(k)?"checked":""} onchange="tick('${a.id}',${k},this.checked);render()"><span>${c}</span></label>`).join("")}</details>`:""}
 <button class="lk" onclick="run(()=>doResolve('${a.id}',true))">I found it myself</button>`}${s.rm==a.id?`<div class="row" style="margin-top:4px"><button class="btn s" onclick="s.rm=null;render()">Keep</button><button class="btn" onclick="s.rm=null;run(()=>doRemove('${a.id}'))">Remove alert</button></div>`:""}</div>`}).join("")
 :`<div class="card mu">You haven’t registered anything yet.<button class="btn s" onclick="go('lost')">😟 I lost something</button></div>`)}`
@@ -345,25 +410,26 @@ function bump(n){const i=items.find(x=>x.id==s.sel),base=new Date((s.exp||ymd(i.
 function saveExp(){const id=s.sel,v=s.exp||ymd(items.find(x=>x.id==id).expires),kp=s.kp;
   run(async()=>{await doExpiry(id,endOf(v),kp);s.exp=null;s.kp=null;s.toast="✅ Storage period updated."})}
 function claimBox(i){const c=s.claim;
-  if(c&&c.ok){const k=c.keep||i.keep,P=Shared.PLACES[k];return `<div class="toast">✅ Verified! Collect it at ${esc(k)} with your student ID.${P?`<div class="mu" style="margin-top:4px">${P.where} · ${Shared.hoursText(k)}</div>`:""}${remote?`<div class="mu">We’ve emailed you the pickup details.</div>`:""}<div class="mu">The finder’s contact details stay private.</div></div>`}
-  if(i.claimed)return `<div class="card mu">This item has been claimed.</div>`;
-  if(needLogin())return gate("To protect owners, please sign in before claiming. We’ll email you the pickup details.");
+  if(c&&c.ok){const k=c.keep||i.keep,P=Shared.PLACES[k];return `<div class="toast">✅ Verified! Collect it at ${esc(k)} with your student ID.${P?`<div class="mu" style="margin-top:4px">${P.where} · ${Shared.hoursText(k)}</div>`:""}${c.finderContact?`<div class="mu" style="margin-top:4px">📞 Finder’s contact: <b class="sel">${esc(c.finderContact)}</b></div>`:""}</div>`}
+  if(i.claimed)return canEdit(i)&&("ownerContact" in i)?`<div class="card"><b>✅ The owner verified it</b><div class="mu">${i.ownerContact?`Their contact: <b class="sel">${esc(i.ownerContact)}</b>`:"They didn’t leave a contact. They’ll pick it up at "+esc(i.keep)+"."}</div></div>`:`<div class="card mu">This item has been claimed.</div>`;
+  if(needLogin())return gate("To protect owners, please sign in before claiming.");
   return `<div class="card"><b>Is this yours?</b><div class="mu">Answer the ownership question to claim it.</div><label for="ans">${esc(i.q)}</label>
 <input id="ans" placeholder="Your answer" value="${esc(s.f.ans)}" oninput="s.f.ans=this.value" onkeydown="if(event.key==='Enter')claim()" autocomplete="off">
 <div class="mu">Capital letters, spelling variants and similar words (navy = blue) are fine.</div>
+${field("cc","Your contact for the finder (optional)","phone, Instagram or WhatsApp")}
 ${c?`<div class="err">${c.locked?"Too many wrong answers. Please visit the office with your student ID.":"That doesn’t match. Please try again."+(c.left!=null?` (${c.left} tries left)`:"")}</div>`:""}
 ${s.err&&!c?errHtml():""}<button class="btn" ${s.busy||c?.locked?"disabled":""} onclick="claim()">${s.busy?"Checking…":"This is mine"}</button></div>`}
-function claim(){const v=($("ans")||{}).value||"";if(!v.trim())return;run(async()=>{s.claim=await doClaim(s.sel,v)})}
+function claim(){const v=($("ans")||{}).value||"";if(!v.trim())return;run(async()=>{s.claim=await doClaim(s.sel,v,(s.f.cc||"").trim())})}
 function toLost(){const keep={q:s.q,cat:s.cat,zone:s.zone,col:s.col};go("lost");Object.assign(s,{cat:keep.cat,zone:keep.zone,cols:keep.col?[keep.col]:[]});s.f.n=keep.q;render()}
 function submitLost(){const n=(s.f.n||"").trim();
   if(!n||!s.cat){s.err="Please enter an item name and pick a category so we can match it.";return render()}
-  run(async()=>{const m=await doLost({name:n,brand:(s.f.brand||"").trim(),cat:s.cat,zone:s.zone,colors:s.cols,photo:s.photo});
-    go("alerts",{toast:m?"🔔 A similar item has already been handed in!":remote?"✅ Registered. We’ll email you when it turns up.":"✅ Registered. We’ll notify you when it turns up."})})}
+  run(async()=>{const m=await doLost({name:n,brand:(s.f.brand||"").trim(),cat:s.cat,type:s.type,zone:s.zone,colors:colorsOf(),lostAt:lostAt(s.when),contact:(s.f.contact||"").trim(),photo:s.photo});
+    go("alerts",{toast:m?"🔔 A similar item has already been handed in!":pushState()=="on"?"✅ Registered. We’ll notify you on this phone when it turns up.":"✅ Registered. Turn on notifications below so we can tell you when it turns up."})})}
 function submitFound(){const n=(s.f.n||"").trim(),a=(s.f.a||"").trim();
-  if(!n||!s.cat||!s.zone||!a){s.err="Please add a name, category, where you found it and the private answer.";return render()}
-  const keep=s.f.keep||KEEPS[ZN.indexOf(s.zone)]||KEEPS[5];
-  run(async()=>{const hit=await doFound({name:n,brand:(s.f.brand||"").trim(),cat:s.cat,colors:s.cols,zone:s.zone,keep,days:+(s.f.days||14),photo:s.photo,q:(s.f.q||"").trim()||"Describe a detail of the item.",a});
-    go("search",{q:"",cat:"",zone:"",col:"",toast:hit?"🔔 Someone who lost a similar item has been notified"+(remote?" by email.":"."):"✅ Thanks! The item is now listed."})})}
+  if(!n||!s.cat||!s.type||!s.cols[0]||!s.zone||!a){s.err="Please add a name, category, type, main colour, where you found it and the private answer.";return render()}
+  const keep=s.f.keep||KEEPS[ZN.indexOf(s.zone)]||KEEPS.at(-1);
+  run(async()=>{const {hit,contacts}=await doFound({contact:(s.f.contact||"").trim(),name:n,brand:(s.f.brand||"").trim(),cat:s.cat,type:s.type,colors:colorsOf(),zone:s.zone,keep,days:+(s.f.days||14),photo:s.photo,q:(s.f.q||"").trim()||"Describe a detail of the item.",a});
+    go("search",{q:"",cat:"",type:"",zone:"",col:"",toast:hit?"🔔 Someone who lost a similar item has been notified on their phone."+contacts.map(c=>`<div class="mu" style="margin-top:6px">📞 They left a contact for “${esc(c.name)}”: <b class="sel">${esc(c.contact)}</b></div>`).join(""):"✅ Thanks! The item is now listed."})})}
 
 const NAV=[["home","🏠","Home"],["search","🔍","Search"],["map","🗺️","Map"],["alerts","🔔","Alerts"]];
 function render(keep){const a=document.activeElement,f=keep&&a&&a.id,p=f&&a.selectionStart;
@@ -381,10 +447,10 @@ async function boot(){
     try{const r=await fetch("api/config",{cache:"no-store"});
       if(r.ok&&(r.headers.get("content-type")||"").includes("json")){CFG=await r.json();remote=!!CFG.clientId}}catch(_){}
   }
-  if(remote){try{await initAuth()}catch(e){s.err=e.message}}else loadLocal();
+  if(remote){try{await initAuth()}catch(e){s.err=e.message}}else{loadLocal();try{account=JSON.parse(localStorage.getItem("uecf-demo-user")||"null")}catch(_){}}
   try{const a=JSON.parse(sessionStorage.getItem("uecf-after")||"null");sessionStorage.removeItem("uecf-after");if(a)Object.assign(s,a)}catch(_){}
   route();await refresh();checkPush()}
-function route(){const h=location.hash.match(/^#(item=([\w-]+)|lost|found|search|map|alerts)$/);if(!h)return;
+function route(){const h=location.hash.match(/^#(item=([\w-]+)|lost|found|search|map|alerts|app)$/);if(!h)return;
   history.replaceState(null,"",location.pathname+location.search);if(h[2])go("detail",{prev:"home",sel:h[2]});else go(h[1])}
 addEventListener("hashchange",route);
 render();boot();

@@ -2,11 +2,9 @@
 // - Data lives in Netlify Blobs (store "uecf").
 // - Users sign in with a Microsoft account in the browser (MSAL); the browser sends the ID token,
 //   which is verified here against Microsoft's public keys.
-// - Notification emails are sent over SMTP (e.g. a Gmail account with an app password).
 // - Phone notifications use Web Push (VAPID keys in env); subscriptions are stored per user.
 import { getStore } from "@netlify/blobs";
 import { createRemoteJWKSet, jwtVerify } from "jose";
-import nodemailer from "nodemailer";
 import webpush from "web-push";
 import Shared from "../../shared.js";
 
@@ -16,9 +14,8 @@ const JWKS = createRemoteJWKSet(new URL("https://login.microsoftonline.com/commo
 const MAX_TRIES = 5;
 
 export let storeFactory = () => getStore({ name: "uecf", consistency: "strong" });
-export let mailer = null; // tests can replace this
 export let pusher = null; // tests can replace this
-export const setTestHooks = h => { if (h.store) storeFactory = h.store; if (h.mailer) mailer = h.mailer; if (h.pusher) pusher = h.pusher; if (h.verify) verifyToken = h.verify; };
+export const setTestHooks = h => { if (h.store) storeFactory = h.store; if (h.pusher) pusher = h.pusher; if (h.verify) verifyToken = h.verify; };
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const err = (status, message) => json({ error: message }, status);
@@ -53,22 +50,22 @@ async function getUser(req) {
 }
 
 // What the public sees: never the ownership answer or who handed it in.
+const cleanColors = c => { const [m, s] = (Array.isArray(c) ? c : []).filter(x => Shared.COLORS.some(k => k[0] === x)); return m ? (s && s !== m ? [m, s] : [m]) : []; };
+const cleanType = (cat, type) => (Shared.TYPES[cat] || []).includes(type) ? type : "";
+const withMatches = (a, all, u) => {
+  const ms = Shared.matches(a, all).map(m => ({ item: publicItem(m.item, u), why: m.why, level: m.level }));
+  return { ...a, match: ms[0] || null, matches: ms };
+};
+// Contacts are optional and shown to signed-in users only (never to anonymous visitors):
+// the finder's contact on the item, a loser's contact to whoever hands in a matching item.
+const cleanContact = c => String(c || "").replace(/[<>]/g, "").trim().slice(0, 80);
 const publicItem = (i, u) => {
-  const { a, finderId, finderEmail, tries, ...rest } = i;
-  return { ...rest, canEdit: !!u && (u.admin || u.id === finderId) };
+  const { a, finderId, tries, finderContact, ownerContact, claimedBy, ...rest } = i;
+  const mine = !!u && (u.admin || u.id === finderId);
+  return { ...rest, canEdit: mine, ...(u && finderContact ? { finderContact } : {}), ...(mine && i.claimed ? { ownerContact: ownerContact || "" } : {}) };
 };
 
 function appUrl(req) { return env("APP_URL") || env("URL") || (req ? new URL(req.url).origin : ""); }
-
-async function sendMail(to, subject, text) {
-  if (mailer) return mailer({ to, subject, text });
-  if (!env("SMTP_HOST")) { console.log("[mail skipped: SMTP not configured]", to, subject); return; }
-  const t = nodemailer.createTransport({
-    host: env("SMTP_HOST"), port: Number(env("SMTP_PORT") || 465), secure: Number(env("SMTP_PORT") || 465) === 465,
-    auth: { user: env("SMTP_USER"), pass: env("SMTP_PASS") }
-  });
-  await t.sendMail({ from: env("MAIL_FROM") || `UE Campus Finder <${env("SMTP_USER")}>`, to, subject, text });
-}
 
 // Phone notifications to every device the user turned them on for. Dead subscriptions are removed.
 async function push(store, userId, payload) {
@@ -78,7 +75,7 @@ async function push(store, userId, payload) {
   if (!mine.length) return;
   if (!pusher && !env("VAPID_PRIVATE_KEY")) return;
   const send = pusher || ((sub, body) => webpush.sendNotification(sub, body, {
-    TTL: 86400, vapidDetails: { subject: env("VAPID_SUBJECT") || "mailto:" + (env("SMTP_USER") || "admin@example.com"), publicKey: env("VAPID_PUBLIC_KEY"), privateKey: env("VAPID_PRIVATE_KEY") }
+    TTL: 86400, vapidDetails: { subject: env("VAPID_SUBJECT") || appUrl() || "mailto:admin@example.com", publicKey: env("VAPID_PUBLIC_KEY"), privateKey: env("VAPID_PRIVATE_KEY") }
   }));
   const keep = [];
   for (const sub of mine) {
@@ -88,25 +85,7 @@ async function push(store, userId, payload) {
   if (keep.length !== mine.length) { subs[userId] = keep; await store.setJSON("subs", subs); }
 }
 
-async function notifyMatch(req, alert, item) {
-  const left = Shared.daysLeft(item.expires);
-  await sendMail(alert.email, `Possible match for your ${alert.name}`,
-`Hi ${alert.ownerName || ""},
-
-Something similar to the item you reported ("${alert.name}") has been handed in:
-
-  ${item.name}${item.colors?.length ? " (" + item.colors.join(", ") + ")" : ""}
-  Found at: ${item.zone}
-  Stored at: ${item.keep}${Shared.PLACES[item.keep] ? "\n  Where: " + Shared.PLACES[item.keep].where + "\n  Opening hours: " + Shared.hoursText(item.keep) : ""}
-  Kept for: ${left} more day(s)
-
-Open the app to check it and answer the ownership question:
-${appUrl(req)}/#item=${item.id}
-
-UE Campus Finder`);
-}
-
-// Check every open lost report against one item (or one report against all items) and email new matches once.
+// Check every open lost report against one item (or one report against all items) and notify new matches once (phone notification).
 async function runMatching(req, store, alerts, allItems, only) {
   let changed = false;
   for (const al of alerts) {
@@ -116,8 +95,9 @@ async function runMatching(req, store, alerts, allItems, only) {
     al.notified = al.notified || [];
     if (al.notified.includes(m.item.id)) continue;
     al.notified.push(m.item.id); changed = true;
-    try { await notifyMatch(req, al, m.item); } catch (e) { console.error("mail failed", e); }
-    try { await push(store, al.userId, { title: "🔔 Possible match: " + m.item.name, body: `Now at ${m.item.keep}. Tap to check it.`, url: "./#item=" + m.item.id, tag: "match-" + al.id }); } catch (e) { console.error("push failed", e); }
+    try {
+      await push(store, al.userId, { title: `🔔 ${m.level} for your ${al.name}`, body: `${m.item.name} – now at ${m.item.keep}, kept for ${Shared.daysLeft(m.item.expires)} more days. Tap to check it.`, url: "./#item=" + m.item.id, tag: "match-" + al.id });
+    } catch (e) { console.error("push failed", e); }
   }
   if (changed) await store.setJSON("alerts", alerts);
 }
@@ -134,24 +114,8 @@ export async function runReminders(store = storeFactory()) {
     al.reminded = al.reminded || [];
     if (left < 1 || left > 3 || al.reminded.includes(m.item.id)) continue;
     al.reminded.push(m.item.id); sent++;
-    const when = new Date(m.item.expires).toDateString();
-    try {
-      await sendMail(al.email, `Only ${left} day(s) left to pick up "${m.item.name}"`,
-`Hi ${al.ownerName || ""},
-
-The item that matches your report "${al.name}" is only kept until ${when}:
-
-  ${m.item.name} – ${m.item.keep}${Shared.PLACES[m.item.keep] ? "\n  Opening hours: " + Shared.hoursText(m.item.keep) : ""}
-
-After that it moves to the central office or is discarded.
-If it is yours, open the app and answer the ownership question:
-${appUrl()}/#item=${m.item.id}
-
-If you already found your item, open Alerts and tap "I found it".
-
-UE Campus Finder`);
-    } catch (e) { console.error("mail failed", e); }
-    await push(store, al.userId, { title: `⏳ ${left} day${left > 1 ? "s" : ""} left: ${m.item.name}`, body: `Pick it up at ${m.item.keep} before ${when}.`, url: "./#item=" + m.item.id, tag: "remind-" + al.id }).catch(() => {});
+    const when = new Date(m.item.expires).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+    await push(store, al.userId, { title: `⏳ ${left} day${left > 1 ? "s" : ""} left: ${m.item.name}`, body: `Pick it up at ${m.item.keep} before ${when}${Shared.PLACES[m.item.keep] ? " (" + Shared.hoursText(m.item.keep) + ")" : ""}.`, url: "./#item=" + m.item.id, tag: "remind-" + al.id }).catch(() => {});
   }
   if (sent) await store.setJSON("alerts", alerts);
   return sent;
@@ -165,7 +129,7 @@ export default async (req) => {
 
   if (path === "/config") {
     const clientId = env("MS_CLIENT_ID");
-    return json({ clientId, authority: `https://login.microsoftonline.com/${env("MS_TENANT") || "common"}`, mail: !!env("SMTP_HOST"), vapidPublicKey: env("VAPID_PUBLIC_KEY") });
+    return json({ clientId, authority: `https://login.microsoftonline.com/${env("MS_TENANT") || "common"}`, vapidPublicKey: env("VAPID_PUBLIC_KEY") });
   }
 
   const store = storeFactory();
@@ -187,24 +151,25 @@ export default async (req) => {
     const no = needUser(); if (no) return no;
     const name = String(body.name || "").trim().slice(0, 80);
     const ZN = Shared.ZONES.map(z => z[0]);
-    if (!name || !Shared.CATS.some(c => c[0] === body.cat) || !ZN.includes(body.zone) || !String(body.a || "").trim())
-      return err(400, "Name, category, place found and the private answer are required.");
+    if (!name || !Shared.CATS.some(c => c[0] === body.cat) || !cleanType(body.cat, body.type) || !cleanColors(body.colors).length || !ZN.includes(body.zone) || !String(body.a || "").trim())
+      return err(400, "Name, category, type, main colour, place found and the private answer are required.");
     const days = Math.min(Math.max(Number(body.days) || 14, 1), 365);
     const it = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       name, cat: body.cat, zone: body.zone,
-      colors: (Array.isArray(body.colors) ? body.colors : []).filter(c => Shared.COLORS.some(x => x[0] === c)).slice(0, 2),
+      colors: cleanColors(body.colors), type: cleanType(body.cat, body.type),
       brand: String(body.brand || "").slice(0, 60), keep: String(body.keep || "").slice(0, 60) || body.zone,
       photo: String(body.photo || "").startsWith("data:image/") && body.photo.length < 400000 ? body.photo : "",
       q: String(body.q || "Describe a detail of the item.").slice(0, 140), a: String(body.a).slice(0, 80),
       createdAt: new Date().toISOString(), expires: Shared.addDays(Date.now(), days),
-      finderId: user.id, finderEmail: user.email
+      finderContact: cleanContact(body.contact), finderId: user.id
     };
     const all = await items(store); all.unshift(it); await store.setJSON("items", all);
     const alerts = await load(store, "alerts", []);
     await runMatching(req, store, alerts.filter(a => a.userId !== user.id), all, { item: it });
-    const notified = alerts.some(a => a.notified?.includes(it.id));
-    return json({ item: publicItem(it, user), notified }, 201);
+    const hits = alerts.filter(a => a.notified?.includes(it.id));
+    const ownerContacts = hits.filter(a => a.contact).slice(0, 3).map(a => ({ name: a.name, contact: a.contact }));
+    return json({ item: publicItem(it, user), notified: hits.length > 0, ownerContacts }, 201);
   }
 
   if (parts[0] === "items" && parts.length === 2 && method === "PATCH") {
@@ -231,20 +196,16 @@ export default async (req) => {
     if ((it.tries[user.id] || 0) >= MAX_TRIES) return json({ ok: false, locked: true });
     const ok = Shared.sameAnswer(body.answer, it.a);
     if (!ok) { it.tries[user.id] = (it.tries[user.id] || 0) + 1; await store.setJSON("items", all); return json({ ok: false, left: MAX_TRIES - it.tries[user.id] }); }
-    it.claimed = { by: user.email, at: new Date().toISOString() };
+    it.claimed = { at: new Date().toISOString() };
+    it.claimedBy = user.id;
+    it.ownerContact = cleanContact(body.contact);
     await store.setJSON("items", all);
     const alerts = await load(store, "alerts", []);
     let solved = false;
     for (const al of alerts) if (al.userId === user.id && !al.resolved && (al.notified?.includes(it.id) || Shared.match(al, it).score > 0)) { al.resolved = true; solved = true; }
     if (solved) await store.setJSON("alerts", alerts);
-    try {
-      await sendMail(user.email, `Pick up your ${it.name}`,
-        `Your answer was verified.\n\nCollect "${it.name}" at ${it.keep} with your student ID.\nIt is kept until ${new Date(it.expires).toDateString()}.\n\nUE Campus Finder`);
-      if (it.finderEmail && it.finderEmail !== user.email)
-        await sendMail(it.finderEmail, `The owner of "${it.name}" was found`, `Thanks for handing it in! The owner verified ownership and will collect it at ${it.keep}.\n\nUE Campus Finder`);
-    } catch (e) { console.error("mail failed", e); }
-    if (it.finderId !== user.id) await push(store, it.finderId, { title: "🙌 The owner was found", body: `"${it.name}" will be collected at ${it.keep}. Thank you!`, url: "./", tag: "claim-" + it.id }).catch(() => {});
-    return json({ ok: true, keep: it.keep, solved });
+    if (it.finderId !== user.id) await push(store, it.finderId, { title: "🙌 The owner was found", body: `"${it.name}" will be collected at ${it.keep}.${it.ownerContact ? " They left a contact – open the item to see it." : " Thank you!"}`, url: "./", tag: "claim-" + it.id }).catch(() => {});
+    return json({ ok: true, keep: it.keep, solved, finderContact: it.finderContact || "" });
   }
 
   // ---- phone notifications ----
@@ -270,27 +231,27 @@ export default async (req) => {
     if (method === "GET") {
       const all = await items(store);
       return json(alerts.filter(a => a.userId === user.id).map(a => {
-        const m = Shared.bestMatch(a, all);
-        return { ...a, match: m ? { item: publicItem(m.item, user), why: m.why } : null };
+        return withMatches(a, all, user);
       }));
     }
     if (method === "POST") {
       const name = String(body.name || "").trim().slice(0, 80);
       if (!name) return err(400, "Item name is required.");
       const al = {
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), userId: user.id, email: user.email, ownerName: user.name,
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), userId: user.id,
         name, brand: String(body.brand || "").slice(0, 60),
         cat: Shared.CATS.some(c => c[0] === body.cat) ? body.cat : "",
         zone: String(body.zone || "").slice(0, 40),
-        colors: (Array.isArray(body.colors) ? body.colors : []).filter(c => Shared.COLORS.some(x => x[0] === c)).slice(0, 2),
+        contact: cleanContact(body.contact),
+        lostAt: body.lostAt && !isNaN(new Date(body.lostAt)) ? new Date(body.lostAt).toISOString() : "",
+        colors: cleanColors(body.colors), type: cleanType(body.cat, body.type),
         photo: String(body.photo || "").startsWith("data:image/") && body.photo.length < 400000 ? body.photo : "",
         createdAt: new Date().toISOString(), notified: []
       };
       alerts.unshift(al); await store.setJSON("alerts", alerts);
       const all = await items(store);
       await runMatching(req, store, alerts, all, { alertId: al.id });
-      const m = Shared.bestMatch(al, all);
-      return json({ ...al, match: m ? { item: publicItem(m.item, user), why: m.why } : null }, 201);
+      return json(withMatches(al, all, user), 201);
     }
     if (method === "PATCH" && parts[1]) {
       const al = alerts.find(a => a.id === parts[1] && a.userId === user.id);
