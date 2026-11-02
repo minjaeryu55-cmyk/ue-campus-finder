@@ -5,15 +5,24 @@
   if (typeof module === "object" && module.exports) module.exports = factory();
   else root.Shared = factory();
 })(typeof self !== "undefined" ? self : this, function () {
-  const ZONES = [["Library", "📚"], ["Lecture Hall A", "🏫"], ["Cafeteria", "☕"], ["Sports Hall", "⚽"], ["Dorm", "🏠"], ["Central Office", "🏢"]];
+  const ZONES = [["Library", "📚"], ["Lecture Hall A", "🏫"], ["Cafeteria", "☕"], ["Sports Hall", "⚽"], ["Central Office", "🏢"]];
   const CATS = [["Wallet/Cards", "👛"], ["Electronics", "🎧"], ["Keys", "🔑"], ["Bags/Clothing", "🎒"], ["Bottles/Other", "🧴"]];
   const NOMEM = "Don’t remember";
+  // What exactly the item is, per category. Finder and owner pick from the same list, so "AirPods" and "earphones" end up the same.
+  const TYPES = {
+    "Wallet/Cards": ["Wallet", "Card holder", "Student ID", "Bank card", "Passport / ID"],
+    "Electronics": ["Earbuds", "Headphones", "Phone", "Laptop", "Tablet", "Charger / cable", "Smartwatch"],
+    "Keys": ["Key ring", "Single key", "Car key", "Key card"],
+    "Bags/Clothing": ["Backpack", "Handbag / tote", "Jacket / coat", "Sweater / hoodie", "Scarf / hat", "Gloves", "Shoes"],
+    "Bottles/Other": ["Water bottle", "Umbrella", "Glasses", "Book / notes", "Jewellery", "Other"]
+  };
   // Fixed colour palette: people tap a swatch instead of typing a colour word.
+  // colors[0] = main colour (what you see first), colors[1] = optional second colour (pattern, logo, lid …).
   const COLORS = [
     ["Black", "#1b1b1b"], ["White", "#f7f7f7"], ["Grey", "#9a9a9a"], ["Silver", "#c9ced3"],
     ["Brown", "#7a4a26"], ["Beige", "#d9c7a3"], ["Red", "#d23b3b"], ["Pink", "#ec8fb8"],
     ["Orange", "#ef8a2a"], ["Yellow", "#f2d03b"], ["Green", "#3f9a54"], ["Blue", "#2f6fd6"],
-    ["Purple", "#8a52c7"], ["Multi", "conic-gradient(#d23b3b,#f2d03b,#3f9a54,#2f6fd6,#d23b3b)"]
+    ["Purple", "#8a52c7"]
   ];
   // Words people use for the same thing -> one canonical word.
   const SYN = {
@@ -22,7 +31,7 @@
     gold: "yellow", golden: "yellow", cream: "beige", ivory: "white", tan: "beige", khaki: "beige",
     maroon: "red", burgundy: "red", crimson: "red", scarlet: "red", violet: "purple", lilac: "purple", lavender: "purple",
     olive: "green", mint: "green", lime: "green", rose: "pink", magenta: "pink", chrome: "silver", metal: "silver", steel: "silver",
-    colour: "color", colorful: "multi", colourful: "multi", rainbow: "multi",
+    colour: "color", 
     airpods: "earbuds", earphones: "earbuds", earphone: "earbuds", headphones: "earbuds", buds: "earbuds",
     purse: "wallet", cardholder: "wallet", cardcase: "wallet", "card holder": "wallet",
     flask: "bottle", tumbler: "bottle", thermos: "bottle", "water bottle": "bottle",
@@ -57,34 +66,50 @@
   function textMatch(query, item) {
     const q = words(query);
     if (!q.size) return true;
-    const hay = words([item.name, item.brand, item.cat, ...(item.colors || [])].join(" "));
+    const hay = words([item.name, item.brand, item.cat, item.type, ...(item.colors || [])].join(" "));
     return [...q].every(w => hay.has(w) || [...hay].some(h => h.startsWith(w)));
   }
 
-  // Lost report vs found item. Returns a score (0 = no match) and the reasons.
+  // Lost report vs found item. Hard rules first (anything that clearly differs is not a match),
+  // then a score so the most likely item is shown first. Returns { score, level, why }.
+  const NO = { score: 0, level: "", why: [] };
   function match(lost, found) {
-    if (!lost.cat || lost.cat !== found.cat) return { score: 0, why: [] };
+    if (!lost.cat || lost.cat !== found.cat) return NO;
+    // Found before it was lost? Then it can't be the same item (1 day of slack).
+    if (lost.lostAt && found.createdAt && new Date(found.createdAt) < new Date(lost.lostAt) - DAY) return NO;
     const why = ["same category"];
     let score = 1;
-    const lc = lost.colors || [], fc = found.colors || [];
-    if (lc.length && fc.length && !lc.includes("Multi") && !fc.includes("Multi")) {
-      if (!lc.some(c => fc.includes(c))) return { score: 0, why: [] };
-      score += 2; why.push("same colour");
+    if (lost.type && found.type) {
+      if (lost.type !== found.type) return NO;
+      score += 3; why.push("same type");
+    }
+    const [lm, ls] = lost.colors || [], [fm, fs] = found.colors || [];
+    if (lm && fm) {
+      if (lm === fm) { score += 3; why.push("same main colour"); }
+      else if (lm === fs || ls === fm) { score += 1; why.push("colours overlap"); } // two-tone items described the other way round
+      else return NO;
+      if (ls && fs && ls === fs) score += 1;
     }
     if (lost.zone && lost.zone !== NOMEM) {
       if (lost.zone === found.zone) { score += 2; why.push("same place"); }
       else score -= 1;
     }
-    const lw = words(lost.name + " " + (lost.brand || "")), fw = words(found.name + " " + (found.brand || ""));
+    const lb = words(lost.brand), fb = words(found.brand);
+    if (lb.size && [...lb].some(w => fb.has(w))) { score += 2; why.push("same brand"); }
+    const lw = words(lost.name), fw = words(found.name);
     const common = [...lw].filter(w => fw.has(w));
-    if (common.length) { score += common.length; why.push("similar description"); }
-    return { score: Math.max(score, 0), why };
+    if (common.length) { score += Math.min(common.length, 2); why.push("similar description"); }
+    score = Math.max(score, 0);
+    return { score, level: score >= 7 ? "Strong match" : "Possible match", why };
   }
-  const bestMatch = (lost, items) => lost.resolved ? null : items
+  // Best candidates for one lost report, most likely first.
+  const matches = (lost, items, n = 3) => lost.resolved ? [] : items
     .filter(i => !i.claimed)
     .map(i => ({ item: i, ...match(lost, i) }))
     .filter(m => m.score > 0)
-    .sort((a, b) => b.score - a.score)[0] || null;
+    .sort((a, b) => b.score - a.score || new Date(b.item.createdAt) - new Date(a.item.createdAt))
+    .slice(0, n);
+  const bestMatch = (lost, items) => matches(lost, items, 1)[0] || null;
 
   // Where items are stored and when they can be picked up.
   // NOTE: example opening hours – replace them with the real ones from each office.
@@ -94,7 +119,6 @@
     "Lecture Hall A Office": { where: "Lecture Hall A, room A0.12 (building office)", hours: [[WK, "09:00", "17:00"]] },
     "Cafeteria Counter": { where: "Cafeteria, cash desk", hours: [[WK, "08:00", "18:00"]] },
     "Sports Hall Equipment Room": { where: "Sports Hall, equipment room next to the entrance", hours: [[WK, "10:00", "21:00"], [[6], "10:00", "18:00"]] },
-    "Dorm Reception": { where: "Student dorm, reception", hours: [[[0, 1, 2, 3, 4, 5, 6], "08:00", "22:00"]] },
     "UE Central Lost & Found": { where: "Main building, Student Service Centre (room 0.04)", hours: [[[1, 2, 3, 4], "09:00", "16:00"], [[5], "09:00", "14:00"]] }
   };
   const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -128,18 +152,18 @@
 
   function seed() {
     const now = Date.now();
-    const mk = (id, name, cat, colors, zone, keep, ago, days, q, a, brand) => ({
-      id, name, cat, colors, zone, keep, brand: brand || "", q, a, photo: "",
+    const mk = (id, name, cat, type, colors, zone, keep, ago, days, q, a, brand) => ({
+      id, name, cat, type, colors, zone, keep, brand: brand || "", q, a, photo: "",
       createdAt: new Date(now - ago * DAY).toISOString(), expires: new Date(now + days * DAY).toISOString()
     });
     return [
-      mk("1", "Black leather wallet", "Wallet/Cards", ["Black"], "Lecture Hall A", "UE Central Lost & Found", 0, 20, "Which department is on the student ID inside?", "computer"),
-      mk("2", "White wireless earbuds", "Electronics", ["White"], "Library", "Library Desk", 1, 12, "What colour is the sticker on the case?", "blue", "Apple AirPods"),
-      mk("3", "House keys (bear keyring)", "Keys", ["Silver"], "Cafeteria", "Cafeteria Counter", 0, 6, "Which animal is the keyring?", "bear"),
-      mk("4", "Steel tumbler", "Bottles/Other", ["Grey"], "Library", "Library Desk", 0, 13, "What colour is the lid?", "black"),
-      mk("5", "Football boot (single)", "Bags/Clothing", ["Black", "White"], "Sports Hall", "Sports Hall Equipment Room", 3, 9, "Which brand is it?", "nike")
+      mk("1", "Black leather wallet", "Wallet/Cards", "Wallet", ["Black"], "Lecture Hall A", "UE Central Lost & Found", 0, 20, "Which department is on the student ID inside?", "computer"),
+      mk("2", "White wireless earbuds", "Electronics", "Earbuds", ["White"], "Library", "Library Desk", 1, 12, "What colour is the sticker on the case?", "blue", "Apple AirPods"),
+      mk("3", "House keys (bear keyring)", "Keys", "Key ring", ["Silver"], "Cafeteria", "Cafeteria Counter", 0, 6, "Which animal is the keyring?", "bear"),
+      mk("4", "Steel tumbler", "Bottles/Other", "Water bottle", ["Grey", "Black"], "Library", "Library Desk", 0, 13, "What colour is the lid?", "black"),
+      mk("5", "Football boot (single)", "Bags/Clothing", "Shoes", ["Black", "White"], "Sports Hall", "Sports Hall Equipment Room", 3, 9, "Which brand is it?", "nike")
     ];
   }
 
-  return { ZONES, CATS, NOMEM, COLORS, PLACES, CHECKLIST, hoursText, openState, norm, sameAnswer, textMatch, match, bestMatch, daysLeft, addDays, seed, DAY };
+  return { ZONES, CATS, TYPES, NOMEM, COLORS, matches, PLACES, CHECKLIST, hoursText, openState, norm, sameAnswer, textMatch, match, bestMatch, daysLeft, addDays, seed, DAY };
 });

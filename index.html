@@ -102,6 +102,9 @@ details.wait summary::-webkit-details-marker{display:none}details.wait summary:a
 @keyframes sk{to{background-position:-200% 0}}@media (prefers-reduced-motion:reduce){.sk{animation:none}}
 .desk{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--bd)}.desk:first-of-type{border-top:0}
 .desk>div{min-width:0}
+.cand{display:flex;gap:12px;align-items:center;width:100%;text-align:left;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:14px;padding:10px;margin-top:8px;cursor:pointer}
+.cand.top{background:var(--ok2);border-color:transparent}.cand .th{width:48px;height:48px;font-size:24px}.cand>div:last-child{min-width:0}.cand .tag{margin:0 0 2px;display:table}
+.sel{user-select:all;-webkit-user-select:all;overflow-wrap:anywhere}
 @media (hover:hover){.item:hover,.zone:hover,.act:hover{border-color:var(--ac)}}
 </style>
 </head>
@@ -110,11 +113,13 @@ details.wait summary::-webkit-details-marker{display:none}details.wait summary:a
 <nav aria-label="Main"><div id="nav"></div></nav>
 <script src="shared.js"></script>
 <script>
-const {ZONES,CATS,NOMEM,COLORS}=Shared,KEY="uecf-v3",SCOPES=["openid","profile","email"];
+const {ZONES,CATS,TYPES,NOMEM,COLORS}=Shared,KEY="uecf-v4",SCOPES=["openid","profile","email"];
 const ZN=ZONES.map(z=>z[0]);
-const KEEPS=["Library Desk","Lecture Hall A Office","Cafeteria Counter","Sports Hall Equipment Room","Dorm Reception","UE Central Lost & Found"];
+const KEEPS=["Library Desk","Lecture Hall A Office","Cafeteria Counter","Sports Hall Equipment Room","UE Central Lost & Found"];
 const SELF="I’m keeping it safe";
-const L={cat:CATS.map(c=>c[0]),zone:[...ZN,NOMEM],fzone:ZN,col:COLORS.map(c=>c[0])};
+const WHEN=[["today","Today",0],["yday","Yesterday",1],["few","2–3 days ago",3],["week","Within a week",7],["","Not sure",null]];
+const L={cat:CATS.map(c=>c[0]),zone:[...ZN,NOMEM],fzone:ZN,col:COLORS.map(c=>c[0]),type:[],when:WHEN.map(w=>w[1])};
+const lostAt=w=>{const x=WHEN.find(v=>v[1]==w);if(!x||x[2]==null)return "";const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-x[2]);return d.toISOString()};
 const ICON=Object.fromEntries([...CATS,...ZONES]),SW=Object.fromEntries(COLORS);
 const icon=c=>ICON[c]||"📦";
 const esc=t=>String(t??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
@@ -122,13 +127,13 @@ const $=id=>document.getElementById(id);
 const MSLOGO=`<svg width="16" height="16" viewBox="0 0 21 21" aria-hidden="true"><rect width="10" height="10" fill="#f25022"/><rect x="11" width="10" height="10" fill="#7fba00"/><rect y="11" width="10" height="10" fill="#00a4ef"/><rect x="11" y="11" width="10" height="10" fill="#ffb900"/></svg>`;
 
 let items=[],alerts=[],remote=false,CFG=null,MS=null,account=null,installEvt=null,swReg=null;
-let s={v:"home",prev:"home",q:"",cat:"",zone:"",col:"",cols:[],sel:null,toast:"",photo:"",claim:null,f:{},err:"",busy:false,loading:true,exp:null,kp:null,op:{},sort:"new"};
+let s={v:"home",prev:"home",q:"",cat:"",zone:"",col:"",cols:[],type:"",when:"",sel:null,toast:"",photo:"",claim:null,f:{},err:"",busy:false,loading:true,exp:null,kp:null,op:{},sort:"new"};
 
 /* ---------- data: local demo mode (file:// or GitHub Pages) ---------- */
 function loadLocal(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY)||"null")}catch(_){}
   items=d?d.items:Shared.seed();alerts=d?d.alerts:[];if(!d)saveLocal()}
-function saveLocal(){if(remote)return;try{localStorage.setItem(KEY,JSON.stringify({items,alerts:alerts.map(({match,...a})=>a)}))}catch(_){}}
-function localMatch(){alerts.forEach(a=>{const m=Shared.bestMatch(a,items);a.match=m?{item:m.item,why:m.why}:null})}
+function saveLocal(){if(remote)return;try{localStorage.setItem(KEY,JSON.stringify({items,alerts:alerts.map(({match,matches,...a})=>a)}))}catch(_){}}
+function localMatch(){alerts.forEach(a=>{a.matches=Shared.matches(a,items).map(m=>({item:m.item,why:m.why,level:m.level}));a.match=a.matches[0]||null})}
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
 /* ---------- data: live mode (Netlify functions + Microsoft sign-in) ---------- */
@@ -142,18 +147,19 @@ async function refresh(){
   else localMatch();
   s.loading=false;render()}
 async function doFound(d){
-  if(remote){const r=await api("items",{method:"POST",body:d});items.unshift(r.item);return r.notified}
-  const it={...d,id:newId(),createdAt:new Date().toISOString(),expires:Shared.addDays(Date.now(),d.days)};
-  items.unshift(it);localMatch();saveLocal();const hit=alerts.some(a=>a.match&&a.match.item.id==it.id);
-  if(hit&&s.pushOn)localNotify("🔔 Possible match: "+it.name,"Now at "+it.keep+". Tap to check it.","./#item="+it.id);return hit}
+  if(remote){const r=await api("items",{method:"POST",body:d});items.unshift(r.item);return{hit:r.notified,contacts:r.ownerContacts||[]}}
+  const {contact,...rest}=d,it={...rest,finderContact:contact||"",id:newId(),createdAt:new Date().toISOString(),expires:Shared.addDays(Date.now(),d.days)};
+  items.unshift(it);localMatch();saveLocal();const hits=alerts.filter(a=>!a.resolved&&Shared.match(a,it).score>0);
+  if(hits.length&&s.pushOn)localNotify("🔔 Possible match: "+it.name,"Now at "+it.keep+". Tap to check it.","./#item="+it.id);
+  return{hit:hits.length>0,contacts:hits.filter(a=>a.contact).slice(0,3).map(a=>({name:a.name,contact:a.contact}))}}
 async function doLost(d){
   if(remote){const a=await api("alerts",{method:"POST",body:d});alerts.unshift(a);return a.match}
   const a={...d,id:newId(),createdAt:new Date().toISOString()};alerts.unshift(a);localMatch();saveLocal();return a.match}
 async function doRemove(id){if(remote)await api("alerts/"+id,{method:"DELETE"});alerts=alerts.filter(a=>a.id!=id);saveLocal()}
-async function doClaim(id,answer){
-  if(remote){const r=await api(`items/${id}/claim`,{method:"POST",body:{answer}});if(r.ok){const i=items.find(x=>x.id==id);if(i)i.claimed=true;if(r.solved)alerts=await api("alerts")}return r}
+async function doClaim(id,answer,contact){
+  if(remote){const r=await api(`items/${id}/claim`,{method:"POST",body:{answer,contact}});if(r.ok){const i=items.find(x=>x.id==id);if(i)i.claimed=true;if(r.solved)alerts=await api("alerts")}return r}
   const i=items.find(x=>x.id==id);if(!Shared.sameAnswer(answer,i.a))return{ok:false};
-  i.claimed={at:new Date().toISOString()};alerts.forEach(a=>{if(!a.resolved&&Shared.match(a,i).score>0)a.resolved=true});localMatch();saveLocal();return{ok:true,keep:i.keep}}
+  i.claimed={at:new Date().toISOString()};i.ownerContact=contact||"";alerts.forEach(a=>{if(!a.resolved&&Shared.match(a,i).score>0)a.resolved=true});localMatch();saveLocal();return{ok:true,keep:i.keep,finderContact:i.finderContact||""}}
 async function doResolve(id,v){const a=alerts.find(x=>x.id==id);
   if(remote){Object.assign(a,await api("alerts/"+id,{method:"PATCH",body:{resolved:v}}));alerts=await api("alerts");return}
   a.resolved=v;localMatch();saveLocal()}
@@ -208,7 +214,7 @@ async function initAuth(){await loadScript("vendor/msal-browser.min.js");
   const r=await MS.handleRedirectPromise().catch(e=>{s.err="Sign-in failed: "+e.message;return null});
   account=r?.account||MS.getActiveAccount()||MS.getAllAccounts()[0]||null;if(account)MS.setActiveAccount(account)}
 // Every "Sign in" button opens the sign-in screen. Live mode: Microsoft's sign-in page. Demo mode: email only, stored on this device.
-function signIn(){const after={v:s.v=="signin"?"home":s.v,sel:s.sel,f:s.f,cat:s.cat,zone:s.zone,cols:s.cols};
+function signIn(){const after={v:s.v=="signin"?"home":s.v,sel:s.sel,f:s.f,cat:s.cat,zone:s.zone,cols:s.cols,type:s.type,when:s.when};
   try{sessionStorage.setItem("uecf-after",JSON.stringify(after))}catch(_){}s.after=after;go("signin",{f:{}})}
 function doSignIn(){
   if(remote){if(!MS){s.err="Sign-in is not available right now. Please try again later.";return render()}return MS.loginRedirect({scopes:SCOPES,prompt:"select_account"})}
@@ -248,18 +254,26 @@ function share(id){const i=items.find(x=>x.id==id),url=location.origin+location.
 const toastHtml=()=>s.toast?`<div class="toast" role="status">${s.toast}</div>`:"";
 const errHtml=()=>s.err?`<div class="err" role="alert">${esc(s.err)}</div>`:"";
 function go(v,x={}){if(v=="detail"&&s.v!="detail")s.prev=s.v;
-  if((v=="lost"||v=="found")&&s.v!=v)Object.assign(s,{cat:"",zone:"",cols:[],photo:"",f:{}});
+  if((v=="lost"||v=="found")&&s.v!=v)Object.assign(s,{cat:"",zone:"",cols:[],type:"",when:"",photo:"",f:{}});
   Object.assign(s,{v,toast:"",claim:null,err:"",exp:null,kp:null},x);render();const el=$("app");el.classList.remove("in");void el.offsetWidth;el.classList.add("in");scrollTo(0,0)}
 async function run(fn){if(s.busy)return;s.busy=true;s.err="";s.toast="";render();try{await fn()}catch(e){s.err=e.message||String(e)}s.busy=false;render()}
 function itemCard(i){return `<button class="card item" onclick="go('detail',{sel:'${i.id}'})"><div class="th">${pic(i)}</div><div><b>${esc(i.name)}</b> ${dots(i)}<div class="mu">Found at ${esc(i.zone)} · ${ago(i.createdAt)}</div><span class="tag o">📍 ${esc(i.keep)}</span> ${left(i)}</div></button>`}
-function chips(key,lk,multi){return `<div class="chips" role="group">${L[lk].map((n,k)=>{const on=multi?s[key].includes(n):s[key]==n;
+function chips(key,lk,multi){if(lk=="type")L.type=TYPES[s.cat]||[];return `<div class="chips" role="group">${L[lk].map((n,k)=>{const on=multi?s[key].includes(n):s[key]==n;
   const pre=lk=="col"?`<i class="sw" style="background:${SW[n]}"></i>`:(ICON[n]?ICON[n]+" ":"");
   return `<button type="button" class="chip ${on?"on":""}" aria-pressed="${on}" onclick="pick('${key}','${lk}',${k},${!!multi})">${pre}${esc(n)}</button>`}).join("")}</div>`}
 function pick(key,lk,k,multi){const n=L[lk][k];
-  if(multi){const a=s[key],i=a.indexOf(n);i>=0?a.splice(i,1):(a.push(n),a.length>2&&a.shift())}else s[key]=s[key]==n?"":n;render()}
+  if(multi){const a=s[key],i=a.indexOf(n);i>=0?a.splice(i,1):(a.push(n),a.length>2&&a.shift())}else s[key]=s[key]==n?"":n;if(key=="cat"&&!(TYPES[s.cat]||[]).includes(s.type))s.type="";render()}
+// Main colour (index 0) and optional second colour (index 1).
+function colorChips(idx){return `<div class="chips" role="group">${COLORS.map(([n,c],k)=>{const on=s.cols[idx]==n,dis=idx==1&&s.cols[0]==n;
+  return dis?"":`<button type="button" class="chip ${on?"on":""}" aria-pressed="${on}" onclick="pickCol(${idx},${k})"><i class="sw" style="background:${c}"></i>${n}</button>`}).join("")}</div>`}
+function pickCol(idx,k){const n=COLORS[k][0],c=[s.cols[0]||"",s.cols[1]||""];c[idx]=c[idx]==n?"":n;if(idx==0&&c[1]==n)c[1]="";if(!c[0])c[1]="";s.cols=c;render()}
+const colorsOf=()=>[s.cols[0],s.cols[1]].filter(Boolean);
+function colorFields(req){return `<label>Main colour ${req?"":`<span class="mu">(what you see first)</span>`}</label>${colorChips(0)}
+${s.cols[0]?`<label>Second colour <span class="mu">(optional – pattern, logo, lid, strap…)</span></label>${colorChips(1)}`:""}`}
+const typeField=()=>s.cat?`<label>What is it exactly?</label>${chips("type","type")}`:"";
 const field=(k,label,ph,extra="")=>`<label for="f_${k}">${label}</label><input id="f_${k}" value="${esc(s.f[k])}" placeholder="${ph}" oninput="s.f.${k}=this.value" maxlength="80" ${extra}>`;
 function results(){const r=live().filter(i=>Shared.textMatch(s.q,i)&&(!s.cat||i.cat==s.cat)
-  &&(!s.col||!(i.colors||[]).length||i.colors.some(c=>c==s.col||c=="Multi"))&&(!s.zone||s.zone==NOMEM||i.zone==s.zone));
+  &&(!s.type||!i.type||i.type==s.type)&&(!s.col||!(i.colors||[]).length||i.colors.includes(s.col))&&(!s.zone||s.zone==NOMEM||i.zone==s.zone));
   return s.sort=="soon"?r.sort((a,b)=>new Date(a.expires)-new Date(b.expires)):r.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))}
 function photoBtn(){return `<input type="file" accept="image/*" id="pf" style="display:none" onchange="pickPhoto(this)"><button type="button" class="btn s" onclick="$('pf').click()">${s.photo?"✅ Photo added (tap to change)":"📷 Take or add a photo"}</button>${s.photo?`<div class="bigimg" style="height:120px;margin-top:8px"><img src="${s.photo}" alt=""></div>`:""}`}
 function pickPhoto(el){const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,360/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*k;c.height=im.height*k;c.getContext("2d").drawImage(im,0,0,c.width,c.height);s.photo=c.toDataURL("image/jpeg",.7);render()};im.src=r.result};r.readAsDataURL(f)}
@@ -284,7 +298,7 @@ signin:()=>`<button class="back" onclick="go((s.after||{}).v||'home',s.after||{}
 <div class="card"><div class="perks">
 <div><i>🔔</i><span><b>Get alerts</b><br><span class="mu">A notification on your phone when a matching item is handed in.</span></span></div>
 <div><i>🙌</i><span><b>Hand in found items</b><br><span class="mu">The owner is told where you left it.</span></span></div>
-<div><i>🔒</i><span><b>Claim safely</b><br><span class="mu">Only the real owner can claim, and your contact details are never shown.</span></span></div></div></div>
+<div><i>🔒</i><span><b>Claim safely</b><br><span class="mu">Only the real owner can claim. Your contact is shown only if you add one, and only to signed-in students.</span></span></div></div></div>
 <div class="form">${remote?"":`${field("em","UE email","name@ue-germany.de",'type="email" autocomplete="email" inputmode="email"')}${field("nm","Your name (optional)","e.g. Minjae",'autocomplete="name"')}`}
 ${errHtml()}<button class="btn ms" onclick="doSignIn()">${MSLOGO} ${remote?"Sign in with Microsoft":"Continue"}</button>
 <div class="or">New here?</div><div class="mu c">There’s no separate sign-up. Your UE Microsoft account is your account – your profile is created the first time you sign in.</div></div>
@@ -301,7 +315,7 @@ ${remote?"":`<button class="lk" onclick="localStorage.removeItem(KEY);loadLocal(
 
 search:()=>{const r=results();return `${wf(2)}<h1>Search</h1>${toastHtml()}<input type="search" id="sq" placeholder="Search by name, brand or colour" value="${esc(s.q)}" oninput="s.q=this.value;render(true)" enterkeyhint="search">
 <div class="mu">Different words are understood: “gray” = grey, “navy” = blue, “AirPods” = earbuds.</div>
-<label>Category</label>${chips("cat","cat")}<label>Colour</label>${chips("col","col")}<label>Where did you lose it? (as much as you remember)</label>${chips("zone","zone")}
+<label>Category</label>${chips("cat","cat")}${s.cat?`<label>Type</label>${chips("type","type")}`:""}<label>Colour</label>${chips("col","col")}<label>Where did you lose it? (as much as you remember)</label>${chips("zone","zone")}
 <div class="sec" style="margin-top:12px"><div class="mu" aria-live="polite">${r.length} found</div><div class="chips" role="group" aria-label="Sort">${[["new","Newest"],["soon","Ending soon"]].map(([k,l])=>`<button class="chip ${(s.sort||"new")==k?"on":""}" aria-pressed="${(s.sort||"new")==k}" onclick="s.sort='${k}';render()">${l}</button>`).join("")}</div></div>${s.loading?skel():""}${r.map(itemCard).join("")||`<div class="card">No match yet.<button class="btn" onclick="toLost()">Get notified when it’s found</button></div>`}`},
 
 detail:()=>{const i=items.find(x=>x.id==s.sel);
@@ -309,25 +323,26 @@ detail:()=>{const i=items.find(x=>x.id==s.sel);
   return `<div class="top"><button class="back" onclick="go(s.prev)">← Back</button><span><button class="btn s sm" onclick="share('${i.id}')">↗ Share</button> ${wf(3)}</span></div>${toastHtml()}
 <div class="card"><div class="bigimg">${pic(i)}</div><h2 style="margin-top:14px">${esc(i.name)} ${dots(i)}</h2>${left(i)}
 <div class="info"><div><i>📍</i><span>Currently at <b>${esc(i.keep)}</b>${Shared.PLACES[i.keep]?`<br><span class="mu">${Shared.PLACES[i.keep].where}</span>`:""}</span></div>
-${Shared.PLACES[i.keep]?`<div><i>🕘</i><span>${pill(i.keep)}<br><span class="mu">${Shared.hoursText(i.keep)}</span></span></div>`:""}<div><i>🔎</i><span>Found at ${esc(i.zone)} · ${ago(i.createdAt)}</span></div>
-${i.brand?`<div><i>🏷️</i><span>${esc(i.brand)}</span></div>`:""}<div><i>⏳</i><span>Kept until <b>${fmt(i.expires)}</b><br><span class="mu">Then it moves to the UE Central Office or is discarded.</span></span></div></div></div>
+${Shared.PLACES[i.keep]?`<div><i>🕘</i><span>${pill(i.keep)}<br><span class="mu">${Shared.hoursText(i.keep)}</span></span></div>`:""}${i.finderContact?`<div><i>📞</i><span>Finder’s contact: <b class="sel">${esc(i.finderContact)}</b></span></div>`:remote&&!account?`<div><i>📞</i><span class="mu">Sign in to see the finder’s contact (if they left one).</span></div>`:""}<div><i>🔎</i><span>Found at ${esc(i.zone)} · ${ago(i.createdAt)}</span></div>
+${i.type||i.brand?`<div><i>🏷️</i><span>${esc([i.type,i.brand].filter(Boolean).join(" · "))}</span></div>`:""}<div><i>⏳</i><span>Kept until <b>${fmt(i.expires)}</b><br><span class="mu">Then it moves to the UE Central Office or is discarded.</span></span></div></div></div>
 ${canEdit(i)&&!i.claimed?editor(i):""}${claimBox(i)}`},
 
 lost:()=>`${wf(4)}<button class="back" onclick="go('home')">← Home</button><h1>I lost something</h1>${toastHtml()}<div class="mu">Register it and we’ll notify you on your phone when a matching item is handed in.</div>
 ${needLogin()?gate("Sign in with your Microsoft account so we can notify you when it turns up."):`
-<div class="form">${field("n","Item name","e.g. black wallet")}${field("brand","Brand or distinctive mark (optional)","e.g. Samsung, sticker, initials")}
-<label>Category</label>${chips("cat","cat")}
-<label>Colour <span class="mu">(tap up to 2 – closest match is fine)</span></label>${chips("cols","col",1)}
+<div class="form">${field("n","Item name","e.g. black wallet")}${field("brand","Brand or distinctive mark (optional)","e.g. Samsung, sticker, initials")}${field("contact","Your contact (optional)","phone, Instagram, KakaoTalk ID…",'autocomplete="tel"')}<div class="mu">Shown to signed-in students who hand in a matching item, so they can reach you directly.</div>
+<label>Category</label>${chips("cat","cat")}${typeField()}
+${colorFields()}
+<label>When did you lose it?</label>${chips("when","when")}
 <label>Last place you had it (it’s okay if you don’t know)</label>${chips("zone","zone")}
 <label>Photo (optional, e.g. an old photo of it)</label>${photoBtn()}
 ${errHtml()}<button class="btn" ${s.busy?"disabled":""} onclick="submitLost()">${s.busy?"Saving…":"Register and get notified"}</button></div>
 `}`,
 
-found:()=>{const keep=s.f.keep||KEEPS[ZN.indexOf(s.zone)]||KEEPS[5];return `${wf(5)}<button class="back" onclick="go('home')">← Home</button><h1>I found something</h1>${toastHtml()}<div class="mu">Just tell us where you left it. The owner can check right away.</div>
-${needLogin()?gate("Sign in so the owner can be notified. Your contact details are never shown to them."):`
-<div class="form">${field("n","Item name","e.g. blue umbrella")}${field("brand","Brand or distinctive mark (optional)","e.g. Nike, sticker, initials")}
-<label>Category</label>${chips("cat","cat")}
-<label>Colour <span class="mu">(tap up to 2)</span></label>${chips("cols","col",1)}
+found:()=>{const keep=s.f.keep||KEEPS[ZN.indexOf(s.zone)]||KEEPS.at(-1);return `${wf(5)}<button class="back" onclick="go('home')">← Home</button><h1>I found something</h1>${toastHtml()}<div class="mu">Just tell us where you left it. The owner can check right away.</div>
+${needLogin()?gate("Sign in so the owner can be notified on their phone."):`
+<div class="form">${field("n","Item name","e.g. blue umbrella")}${field("brand","Brand or distinctive mark (optional)","e.g. Nike, sticker, initials")}${field("contact","Your contact (optional)","phone, Instagram, KakaoTalk ID…",'autocomplete="tel"')}<div class="mu">Shown to signed-in students on this item, so the owner can reach you directly.</div>
+<label>Category</label>${chips("cat","cat")}${typeField()}
+${colorFields(1)}
 <label>Where did you find it?</label>${chips("zone","fzone")}
 <label for="fk">Where is it now?</label><select id="fk" onchange="s.f.keep=this.value">${[...KEEPS,SELF].map(o=>`<option ${keep==o?"selected":""}>${o}</option>`).join("")}</select>
 <label for="fd">Keep it for</label><select id="fd" onchange="s.f.days=this.value">${[7,14,30].map(d=>`<option value="${d}" ${(s.f.days||14)==d?"selected":""}>${d} days</option>`).join("")}</select>
@@ -347,9 +362,9 @@ alerts:()=>`${wf(7)}<h1>Alerts</h1>${toastHtml()}
 ${needLogin()?gate("Sign in to see your registered items and get phone alerts for matches."):
 `<div class="mu">Matches show here and as a notification on your phone${remote?"":" (demo: on this device only)"}.</div>`+pushCard()+
 (alerts.length?alerts.map((a,ai)=>{const m=a.match,cl=Shared.CHECKLIST[a.cat]||[],done=(checks[a.id]||[]).length;return `<div class="card ${a.resolved?"done":""}"><button class="x" aria-label="Remove alert" onclick="s.rm='${a.id}';render()">×</button>
-<div class="item"><div class="th">${a.photo?`<img src="${esc(a.photo)}" alt="">`:icon(a.cat)}</div><div><b>${esc(a.name)}</b> ${dots(a)}<div class="mu">${esc(a.cat||"No category")} · ${esc(a.zone||"No place")}</div></div></div>
+<div class="item"><div class="th">${a.photo?`<img src="${esc(a.photo)}" alt="">`:icon(a.cat)}</div><div><b>${esc(a.name)}</b> ${dots(a)}<div class="mu">${esc(a.type||a.cat||"No category")} · ${esc(a.zone||"No place")}</div></div></div>${m?`<div class="mu" style="margin:10px 0 2px;font-weight:650">${(a.matches||[m]).length>1?(a.matches.length+" items could be yours – most likely first"):"This could be yours"}</div>`:""}
 ${a.resolved?`<div class="sec" style="margin-top:8px"><span class="tag o">✅ Found – no more alerts</span><button class="lk" onclick="run(()=>doResolve('${a.id}',false))">Still missing?</button></div>`:
-`${m?`<div class="toast">🔔 Possible match: ${esc(m.item.name)} → ${esc(m.item.keep)}<div class="mu">Why: ${m.why.join(" · ")}</div></div><button class="btn s" onclick="go('detail',{sel:'${m.item.id}'})">Check it</button>`:`<span class="tag w">Looking… we’ll notify you</span>`}
+`${m?(a.matches||[m]).map((x,k)=>`<button class="cand ${k?"":"top"}" onclick="go('detail',{sel:'${x.item.id}'})"><div class="th">${pic(x.item)}</div><div><span class="tag ${x.level=="Strong match"?"o":"w"}">${x.level=="Strong match"?"✓ Strong match":"Possible match"}</span><b>${esc(x.item.name)}</b> ${dots(x.item)}<div class="mu">📍 ${esc(x.item.keep)} · ${x.why.join(" · ")}</div></div></button>`).join(""):`<span class="tag w">Looking… we’ll notify you</span>`}
 ${cl.length?`<details class="wait" ${(s.op[a.id]??(ai==0&&done<cl.length))?"open":""} ontoggle="s.op['${a.id}']=this.open"><summary>While you wait · ${done}/${cl.length} done</summary>${cl.map((c,k)=>`<label class="chk"><input type="checkbox" ${(checks[a.id]||[]).includes(k)?"checked":""} onchange="tick('${a.id}',${k},this.checked);render()"><span>${c}</span></label>`).join("")}</details>`:""}
 <button class="lk" onclick="run(()=>doResolve('${a.id}',true))">I found it myself</button>`}${s.rm==a.id?`<div class="row" style="margin-top:4px"><button class="btn s" onclick="s.rm=null;render()">Keep</button><button class="btn" onclick="s.rm=null;run(()=>doRemove('${a.id}'))">Remove alert</button></div>`:""}</div>`}).join("")
 :`<div class="card mu">You haven’t registered anything yet.<button class="btn s" onclick="go('lost')">😟 I lost something</button></div>`)}`
@@ -367,25 +382,26 @@ function bump(n){const i=items.find(x=>x.id==s.sel),base=new Date((s.exp||ymd(i.
 function saveExp(){const id=s.sel,v=s.exp||ymd(items.find(x=>x.id==id).expires),kp=s.kp;
   run(async()=>{await doExpiry(id,endOf(v),kp);s.exp=null;s.kp=null;s.toast="✅ Storage period updated."})}
 function claimBox(i){const c=s.claim;
-  if(c&&c.ok){const k=c.keep||i.keep,P=Shared.PLACES[k];return `<div class="toast">✅ Verified! Collect it at ${esc(k)} with your student ID.${P?`<div class="mu" style="margin-top:4px">${P.where} · ${Shared.hoursText(k)}</div>`:""}<div class="mu">The finder’s contact details stay private.</div></div>`}
-  if(i.claimed)return `<div class="card mu">This item has been claimed.</div>`;
+  if(c&&c.ok){const k=c.keep||i.keep,P=Shared.PLACES[k];return `<div class="toast">✅ Verified! Collect it at ${esc(k)} with your student ID.${P?`<div class="mu" style="margin-top:4px">${P.where} · ${Shared.hoursText(k)}</div>`:""}${c.finderContact?`<div class="mu" style="margin-top:4px">📞 Finder’s contact: <b class="sel">${esc(c.finderContact)}</b></div>`:""}</div>`}
+  if(i.claimed)return canEdit(i)&&("ownerContact" in i)?`<div class="card"><b>✅ The owner verified it</b><div class="mu">${i.ownerContact?`Their contact: <b class="sel">${esc(i.ownerContact)}</b>`:"They didn’t leave a contact. They’ll pick it up at "+esc(i.keep)+"."}</div></div>`:`<div class="card mu">This item has been claimed.</div>`;
   if(needLogin())return gate("To protect owners, please sign in before claiming.");
   return `<div class="card"><b>Is this yours?</b><div class="mu">Answer the ownership question to claim it.</div><label for="ans">${esc(i.q)}</label>
 <input id="ans" placeholder="Your answer" value="${esc(s.f.ans)}" oninput="s.f.ans=this.value" onkeydown="if(event.key==='Enter')claim()" autocomplete="off">
 <div class="mu">Capital letters, spelling variants and similar words (navy = blue) are fine.</div>
+${field("cc","Your contact for the finder (optional)","phone, Instagram, KakaoTalk ID…")}
 ${c?`<div class="err">${c.locked?"Too many wrong answers. Please visit the office with your student ID.":"That doesn’t match. Please try again."+(c.left!=null?` (${c.left} tries left)`:"")}</div>`:""}
 ${s.err&&!c?errHtml():""}<button class="btn" ${s.busy||c?.locked?"disabled":""} onclick="claim()">${s.busy?"Checking…":"This is mine"}</button></div>`}
-function claim(){const v=($("ans")||{}).value||"";if(!v.trim())return;run(async()=>{s.claim=await doClaim(s.sel,v)})}
+function claim(){const v=($("ans")||{}).value||"";if(!v.trim())return;run(async()=>{s.claim=await doClaim(s.sel,v,(s.f.cc||"").trim())})}
 function toLost(){const keep={q:s.q,cat:s.cat,zone:s.zone,col:s.col};go("lost");Object.assign(s,{cat:keep.cat,zone:keep.zone,cols:keep.col?[keep.col]:[]});s.f.n=keep.q;render()}
 function submitLost(){const n=(s.f.n||"").trim();
   if(!n||!s.cat){s.err="Please enter an item name and pick a category so we can match it.";return render()}
-  run(async()=>{const m=await doLost({name:n,brand:(s.f.brand||"").trim(),cat:s.cat,zone:s.zone,colors:s.cols,photo:s.photo});
+  run(async()=>{const m=await doLost({name:n,brand:(s.f.brand||"").trim(),cat:s.cat,type:s.type,zone:s.zone,colors:colorsOf(),lostAt:lostAt(s.when),contact:(s.f.contact||"").trim(),photo:s.photo});
     go("alerts",{toast:m?"🔔 A similar item has already been handed in!":pushState()=="on"?"✅ Registered. We’ll notify you on this phone when it turns up.":"✅ Registered. Turn on notifications below so we can tell you when it turns up."})})}
 function submitFound(){const n=(s.f.n||"").trim(),a=(s.f.a||"").trim();
-  if(!n||!s.cat||!s.zone||!a){s.err="Please add a name, category, where you found it and the private answer.";return render()}
-  const keep=s.f.keep||KEEPS[ZN.indexOf(s.zone)]||KEEPS[5];
-  run(async()=>{const hit=await doFound({name:n,brand:(s.f.brand||"").trim(),cat:s.cat,colors:s.cols,zone:s.zone,keep,days:+(s.f.days||14),photo:s.photo,q:(s.f.q||"").trim()||"Describe a detail of the item.",a});
-    go("search",{q:"",cat:"",zone:"",col:"",toast:hit?"🔔 Someone who lost a similar item has been notified"+" on their phone.":"✅ Thanks! The item is now listed."})})}
+  if(!n||!s.cat||!s.type||!s.cols[0]||!s.zone||!a){s.err="Please add a name, category, type, main colour, where you found it and the private answer.";return render()}
+  const keep=s.f.keep||KEEPS[ZN.indexOf(s.zone)]||KEEPS.at(-1);
+  run(async()=>{const {hit,contacts}=await doFound({contact:(s.f.contact||"").trim(),name:n,brand:(s.f.brand||"").trim(),cat:s.cat,type:s.type,colors:colorsOf(),zone:s.zone,keep,days:+(s.f.days||14),photo:s.photo,q:(s.f.q||"").trim()||"Describe a detail of the item.",a});
+    go("search",{q:"",cat:"",type:"",zone:"",col:"",toast:hit?"🔔 Someone who lost a similar item has been notified on their phone."+contacts.map(c=>`<div class="mu" style="margin-top:6px">📞 They left a contact for “${esc(c.name)}”: <b class="sel">${esc(c.contact)}</b></div>`).join(""):"✅ Thanks! The item is now listed."})})}
 
 const NAV=[["home","🏠","Home"],["search","🔍","Search"],["map","🗺️","Map"],["alerts","🔔","Alerts"]];
 function render(keep){const a=document.activeElement,f=keep&&a&&a.id,p=f&&a.selectionStart;

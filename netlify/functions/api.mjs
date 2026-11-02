@@ -50,9 +50,19 @@ async function getUser(req) {
 }
 
 // What the public sees: never the ownership answer or who handed it in.
+const cleanColors = c => { const [m, s] = (Array.isArray(c) ? c : []).filter(x => Shared.COLORS.some(k => k[0] === x)); return m ? (s && s !== m ? [m, s] : [m]) : []; };
+const cleanType = (cat, type) => (Shared.TYPES[cat] || []).includes(type) ? type : "";
+const withMatches = (a, all, u) => {
+  const ms = Shared.matches(a, all).map(m => ({ item: publicItem(m.item, u), why: m.why, level: m.level }));
+  return { ...a, match: ms[0] || null, matches: ms };
+};
+// Contacts are optional and shown to signed-in users only (never to anonymous visitors):
+// the finder's contact on the item, a loser's contact to whoever hands in a matching item.
+const cleanContact = c => String(c || "").replace(/[<>]/g, "").trim().slice(0, 80);
 const publicItem = (i, u) => {
-  const { a, finderId, tries, ...rest } = i;
-  return { ...rest, canEdit: !!u && (u.admin || u.id === finderId) };
+  const { a, finderId, tries, finderContact, ownerContact, claimedBy, ...rest } = i;
+  const mine = !!u && (u.admin || u.id === finderId);
+  return { ...rest, canEdit: mine, ...(u && finderContact ? { finderContact } : {}), ...(mine && i.claimed ? { ownerContact: ownerContact || "" } : {}) };
 };
 
 function appUrl(req) { return env("APP_URL") || env("URL") || (req ? new URL(req.url).origin : ""); }
@@ -86,7 +96,7 @@ async function runMatching(req, store, alerts, allItems, only) {
     if (al.notified.includes(m.item.id)) continue;
     al.notified.push(m.item.id); changed = true;
     try {
-      await push(store, al.userId, { title: "🔔 Possible match for your " + al.name, body: `${m.item.name} – now at ${m.item.keep}, kept for ${Shared.daysLeft(m.item.expires)} more days. Tap to check it.`, url: "./#item=" + m.item.id, tag: "match-" + al.id });
+      await push(store, al.userId, { title: `🔔 ${m.level} for your ${al.name}`, body: `${m.item.name} – now at ${m.item.keep}, kept for ${Shared.daysLeft(m.item.expires)} more days. Tap to check it.`, url: "./#item=" + m.item.id, tag: "match-" + al.id });
     } catch (e) { console.error("push failed", e); }
   }
   if (changed) await store.setJSON("alerts", alerts);
@@ -141,24 +151,25 @@ export default async (req) => {
     const no = needUser(); if (no) return no;
     const name = String(body.name || "").trim().slice(0, 80);
     const ZN = Shared.ZONES.map(z => z[0]);
-    if (!name || !Shared.CATS.some(c => c[0] === body.cat) || !ZN.includes(body.zone) || !String(body.a || "").trim())
-      return err(400, "Name, category, place found and the private answer are required.");
+    if (!name || !Shared.CATS.some(c => c[0] === body.cat) || !cleanType(body.cat, body.type) || !cleanColors(body.colors).length || !ZN.includes(body.zone) || !String(body.a || "").trim())
+      return err(400, "Name, category, type, main colour, place found and the private answer are required.");
     const days = Math.min(Math.max(Number(body.days) || 14, 1), 365);
     const it = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       name, cat: body.cat, zone: body.zone,
-      colors: (Array.isArray(body.colors) ? body.colors : []).filter(c => Shared.COLORS.some(x => x[0] === c)).slice(0, 2),
+      colors: cleanColors(body.colors), type: cleanType(body.cat, body.type),
       brand: String(body.brand || "").slice(0, 60), keep: String(body.keep || "").slice(0, 60) || body.zone,
       photo: String(body.photo || "").startsWith("data:image/") && body.photo.length < 400000 ? body.photo : "",
       q: String(body.q || "Describe a detail of the item.").slice(0, 140), a: String(body.a).slice(0, 80),
       createdAt: new Date().toISOString(), expires: Shared.addDays(Date.now(), days),
-      finderId: user.id
+      finderContact: cleanContact(body.contact), finderId: user.id
     };
     const all = await items(store); all.unshift(it); await store.setJSON("items", all);
     const alerts = await load(store, "alerts", []);
     await runMatching(req, store, alerts.filter(a => a.userId !== user.id), all, { item: it });
-    const notified = alerts.some(a => a.notified?.includes(it.id));
-    return json({ item: publicItem(it, user), notified }, 201);
+    const hits = alerts.filter(a => a.notified?.includes(it.id));
+    const ownerContacts = hits.filter(a => a.contact).slice(0, 3).map(a => ({ name: a.name, contact: a.contact }));
+    return json({ item: publicItem(it, user), notified: hits.length > 0, ownerContacts }, 201);
   }
 
   if (parts[0] === "items" && parts.length === 2 && method === "PATCH") {
@@ -185,14 +196,16 @@ export default async (req) => {
     if ((it.tries[user.id] || 0) >= MAX_TRIES) return json({ ok: false, locked: true });
     const ok = Shared.sameAnswer(body.answer, it.a);
     if (!ok) { it.tries[user.id] = (it.tries[user.id] || 0) + 1; await store.setJSON("items", all); return json({ ok: false, left: MAX_TRIES - it.tries[user.id] }); }
-    it.claimed = { by: user.email, at: new Date().toISOString() };
+    it.claimed = { at: new Date().toISOString() };
+    it.claimedBy = user.id;
+    it.ownerContact = cleanContact(body.contact);
     await store.setJSON("items", all);
     const alerts = await load(store, "alerts", []);
     let solved = false;
     for (const al of alerts) if (al.userId === user.id && !al.resolved && (al.notified?.includes(it.id) || Shared.match(al, it).score > 0)) { al.resolved = true; solved = true; }
     if (solved) await store.setJSON("alerts", alerts);
-    if (it.finderId !== user.id) await push(store, it.finderId, { title: "🙌 The owner was found", body: `"${it.name}" will be collected at ${it.keep}. Thank you!`, url: "./", tag: "claim-" + it.id }).catch(() => {});
-    return json({ ok: true, keep: it.keep, solved });
+    if (it.finderId !== user.id) await push(store, it.finderId, { title: "🙌 The owner was found", body: `"${it.name}" will be collected at ${it.keep}.${it.ownerContact ? " They left a contact – open the item to see it." : " Thank you!"}`, url: "./", tag: "claim-" + it.id }).catch(() => {});
+    return json({ ok: true, keep: it.keep, solved, finderContact: it.finderContact || "" });
   }
 
   // ---- phone notifications ----
@@ -218,8 +231,7 @@ export default async (req) => {
     if (method === "GET") {
       const all = await items(store);
       return json(alerts.filter(a => a.userId === user.id).map(a => {
-        const m = Shared.bestMatch(a, all);
-        return { ...a, match: m ? { item: publicItem(m.item, user), why: m.why } : null };
+        return withMatches(a, all, user);
       }));
     }
     if (method === "POST") {
@@ -230,15 +242,16 @@ export default async (req) => {
         name, brand: String(body.brand || "").slice(0, 60),
         cat: Shared.CATS.some(c => c[0] === body.cat) ? body.cat : "",
         zone: String(body.zone || "").slice(0, 40),
-        colors: (Array.isArray(body.colors) ? body.colors : []).filter(c => Shared.COLORS.some(x => x[0] === c)).slice(0, 2),
+        contact: cleanContact(body.contact),
+        lostAt: body.lostAt && !isNaN(new Date(body.lostAt)) ? new Date(body.lostAt).toISOString() : "",
+        colors: cleanColors(body.colors), type: cleanType(body.cat, body.type),
         photo: String(body.photo || "").startsWith("data:image/") && body.photo.length < 400000 ? body.photo : "",
         createdAt: new Date().toISOString(), notified: []
       };
       alerts.unshift(al); await store.setJSON("alerts", alerts);
       const all = await items(store);
       await runMatching(req, store, alerts, all, { alertId: al.id });
-      const m = Shared.bestMatch(al, all);
-      return json({ ...al, match: m ? { item: publicItem(m.item, user), why: m.why } : null }, 201);
+      return json(withMatches(al, all, user), 201);
     }
     if (method === "PATCH" && parts[1]) {
       const al = alerts.find(a => a.id === parts[1] && a.userId === user.id);

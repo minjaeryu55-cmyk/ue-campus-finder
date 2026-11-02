@@ -38,16 +38,16 @@ test("phone notification subscription", async () => {
 });
 
 test("lost report + later found item -> one phone notification to the owner", async () => {
-  const a = await call("POST", "alerts", OWNER, { name: "Navy umbrella", cat: "Bags/Clothing", colors: ["Blue"], zone: "Dorm" });
+  const a = await call("POST", "alerts", OWNER, { name: "Navy umbrella", cat: "Bottles/Other", type: "Umbrella", colors: ["Blue"], zone: "Library" });
   assert.equal(a.status, 201); assert.equal(a.body.match, null);
-  const f = await call("POST", "items", FINDER, { name: "umbrella", cat: "Bags/Clothing", colors: ["Blue"], zone: "Dorm", keep: "Dorm Reception", a: "red handle", q: "Handle colour?" });
+  const f = await call("POST", "items", FINDER, { name: "umbrella", cat: "Bottles/Other", type: "Umbrella", colors: ["Blue"], zone: "Library", keep: "Library Desk", a: "red handle", q: "Handle colour?" });
   assert.equal(f.status, 201); assert.equal(f.body.notified, true);
-  assert.equal(pushes.length, 1); assert.match(pushes[0].body, /Dorm Reception/); assert.equal(pushes[0].to, "https://push.example/owner"); assert.match(pushes[0].url, /#item=/);
+  assert.equal(pushes.length, 1); assert.match(pushes[0].body, /Library Desk/); assert.equal(pushes[0].to, "https://push.example/owner"); assert.match(pushes[0].url, /#item=/);
   assert.equal(JSON.parse(data.get("subs"))["u1"].length, 1, "expired device removed");
   const again = await call("GET", "alerts", OWNER);
   assert.equal(again.body[0].match.item.name, "umbrella");
   // a different-colour item must NOT trigger another notification
-  await call("POST", "items", FINDER, { name: "umbrella", cat: "Bags/Clothing", colors: ["Red"], zone: "Dorm", a: "x" });
+  await call("POST", "items", FINDER, { name: "umbrella", cat: "Bottles/Other", type: "Umbrella", colors: ["Red"], zone: "Library", a: "x" });
   assert.equal(pushes.length, 1);
   assert.equal((await call("GET", "alerts", OTHER)).body.length, 0, "alerts are private");
 });
@@ -77,6 +77,32 @@ test("claim: synonyms accepted, wrong answers limited, claimed item hidden", asy
   assert.ok(!(await call("GET", "items")).body.some(i => i.id === "2"));
   for (let k = 0; k < 5; k++) await call("POST", "items/3/claim", OTHER, { answer: "cat" });
   assert.equal((await call("POST", "items/3/claim", OTHER, { answer: "bear" })).body.locked, true);
+});
+
+test("found item needs type and main colour; lost report keeps lostAt and lists up to 3 candidates", async () => {
+  assert.equal((await call("POST", "items", FINDER, { name: "pen", cat: "Bottles/Other", zone: "Library", a: "x" })).status, 400);
+  assert.equal((await call("POST", "items", FINDER, { name: "glasses", cat: "Bottles/Other", type: "Wallet", colors: ["Black"], zone: "Library", a: "x" })).status, 400, "type must belong to category");
+  const g = await call("POST", "items", FINDER, { name: "glasses", cat: "Bottles/Other", type: "Glasses", colors: ["Black", "Multi"], zone: "Library", a: "round" });
+  assert.equal(g.status, 201); assert.deepEqual(g.body.item.colors, ["Black"], "unknown colours dropped");
+  const lost = await call("POST", "alerts", OTHER, { name: "my glasses", cat: "Bottles/Other", type: "Glasses", colors: ["Black"], lostAt: new Date().toISOString() });
+  assert.ok(lost.body.lostAt); assert.equal(lost.body.match.item.id, g.body.item.id); assert.ok(lost.body.matches.length <= 3);
+  assert.equal(lost.body.match.level, "Strong match");
+  const late = await call("POST", "alerts", OTHER, { name: "glasses", cat: "Bottles/Other", type: "Glasses", lostAt: new Date(Date.now() + 3 * 864e5).toISOString() });
+  assert.equal(late.body.match, null, "items found before the loss date are ignored");
+});
+
+test("contacts: visible to signed-in users, never to anonymous visitors", async () => {
+  await call("POST", "push/subscribe", FINDER, { subscription: { endpoint: "https://push.example/finder", keys: { p256dh: "k", auth: "a" } } });
+  await call("POST", "alerts", OWNER, { name: "blue wool scarf", cat: "Bags/Clothing", type: "Scarf / hat", colors: ["Blue"], contact: "010-1234-5678" });
+  const f = await call("POST", "items", FINDER, { name: "blue scarf", cat: "Bags/Clothing", type: "Scarf / hat", colors: ["Blue"], zone: "Cafeteria", a: "wool", contact: "insta @finder<script>" });
+  const id = f.body.item.id;
+  assert.deepEqual(f.body.ownerContacts, [{ name: "blue wool scarf", contact: "010-1234-5678" }], "finder sees the loser's contact");
+  assert.equal((await call("GET", "items", OTHER)).body.find(i => i.id === id).finderContact, "insta @finderscript");
+  assert.equal((await call("GET", "items")).body.find(i => i.id === id).finderContact, undefined, "anonymous: hidden");
+  const ok = await call("POST", `items/${id}/claim`, OWNER, { answer: "Wool", contact: "010-1234-5678" });
+  assert.equal(ok.body.ok, true);
+  assert.equal((await call("GET", "items", FINDER)).body.find(i => i.id === id).ownerContact, "010-1234-5678");
+  assert.match(pushes.at(-1).body, /left a contact/);
 });
 
 test("allowed email domain", async () => {
