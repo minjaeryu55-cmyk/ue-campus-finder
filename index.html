@@ -124,9 +124,9 @@ details.wait summary::-webkit-details-marker{display:none}details.wait summary:a
 <nav aria-label="Main"><div id="nav"></div></nav>
 <script src="shared.js?v=5"></script>
 <script>
-const {ZONES,CATS,TYPES,NOMEM,COLORS}=Shared,KEY="uecf-v4",SCOPES=["openid","profile","email"];
+const {ZONES,CATS,TYPES,NOMEM,COLORS}=Shared,KEY="uecf-v5",SCOPES=["openid","profile","email"];
 const ZN=ZONES.map(z=>z[0]);
-const KEEPS=["Library Desk","Lecture Hall A Office","Cafeteria Counter","Sports Hall Equipment Room","UE Central Lost & Found"];
+const KEEPS=["Library Desk","Lecture Room Office","Cafeteria Counter","Sports Hall Equipment Room","UE Central Lost & Found"];
 const SELF="I’m keeping it safe";
 const WHEN=[["today","Today",0],["yday","Yesterday",1],["few","2–3 days ago",3],["week","Within a week",7],["","Not sure",null]];
 const L={cat:CATS.map(c=>c[0]),zone:[...ZN,NOMEM],fzone:ZN,col:COLORS.map(c=>c[0]),type:[],when:WHEN.map(w=>w[1])};

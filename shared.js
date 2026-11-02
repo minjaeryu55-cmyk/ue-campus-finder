@@ -5,7 +5,7 @@
   if (typeof module === "object" && module.exports) module.exports = factory();
   else root.Shared = factory();
 })(typeof self !== "undefined" ? self : this, function () {
-  const ZONES = [["Library", "📚"], ["Lecture Hall A", "🏫"], ["Cafeteria", "☕"], ["Sports Hall", "⚽"], ["Central Office", "🏢"]];
+  const ZONES = [["Library", "📚"], ["Lecture Room", "🏫"], ["Cafeteria", "☕"], ["Sports Hall", "⚽"], ["Central Office", "🏢"]];
   const CATS = [["Wallet/Cards", "👛"], ["Electronics", "🎧"], ["Keys", "🔑"], ["Bags/Clothing", "🎒"], ["Bottles/Other", "🧴"]];
   const NOMEM = "Don’t remember";
   // What exactly the item is, per category. Finder and owner pick from the same list, so "AirPods" and "earphones" end up the same.
@@ -116,7 +116,7 @@
   const WK = [1, 2, 3, 4, 5];
   const PLACES = {
     "Library Desk": { where: "Library, ground floor – information desk", hours: [[WK, "09:00", "20:00"], [[6], "10:00", "16:00"]] },
-    "Lecture Hall A Office": { where: "Lecture Hall A, room A0.12 (building office)", hours: [[WK, "09:00", "17:00"]] },
+    "Lecture Room Office": { where: "Lecture building, ground floor office", hours: [[WK, "09:00", "17:00"]] },
     "Cafeteria Counter": { where: "Cafeteria, cash desk", hours: [[WK, "08:00", "18:00"]] },
     "Sports Hall Equipment Room": { where: "Sports Hall, equipment room next to the entrance", hours: [[WK, "10:00", "21:00"], [[6], "10:00", "18:00"]] },
     "UE Central Lost & Found": { where: "Main building, Student Service Centre (room 0.04)", hours: [[[1, 2, 3, 4], "09:00", "16:00"], [[5], "09:00", "14:00"]] }
@@ -157,7 +157,7 @@
       createdAt: new Date(now - ago * DAY).toISOString(), expires: new Date(now + days * DAY).toISOString()
     });
     return [
-      mk("1", "Black leather wallet", "Wallet/Cards", "Wallet", ["Black"], "Lecture Hall A", "UE Central Lost & Found", 0, 20, "Which department is on the student ID inside?", "computer"),
+      mk("1", "Black leather wallet", "Wallet/Cards", "Wallet", ["Black"], "Lecture Room", "UE Central Lost & Found", 0, 20, "Which department is on the student ID inside?", "computer"),
       mk("2", "White wireless earbuds", "Electronics", "Earbuds", ["White"], "Library", "Library Desk", 1, 12, "What colour is the sticker on the case?", "blue", "Apple AirPods"),
       mk("3", "House keys (bear keyring)", "Keys", "Key ring", ["Silver"], "Cafeteria", "Cafeteria Counter", 0, 6, "Which animal is the keyring?", "bear"),
       mk("4", "Steel tumbler", "Bottles/Other", "Water bottle", ["Grey", "Black"], "Library", "Library Desk", 0, 13, "What colour is the lid?", "black"),
