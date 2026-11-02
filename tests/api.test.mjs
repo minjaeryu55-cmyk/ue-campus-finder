@@ -3,12 +3,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import api, { setTestHooks } from "../netlify/functions/api.mjs";
 
-const data = new Map(), mails = [];
+const data = new Map(), mails = [], pushes = [];
 process.env.MS_CLIENT_ID = "test-client";
 process.env.ADMIN_EMAILS = "staff@ue.de";
 setTestHooks({
   store: () => ({ get: async k => (data.has(k) ? JSON.parse(data.get(k)) : null), setJSON: async (k, v) => data.set(k, JSON.stringify(v)) }),
   mailer: async m => mails.push(m),
+  pusher: async (sub, body) => { if (sub.endpoint.includes("gone")) { const e = new Error("gone"); e.statusCode = 410; throw e; } pushes.push({ to: sub.endpoint, ...JSON.parse(body) }); },
   verify: async t => { const [oid, email] = t.split("|"); if (!email) throw new Error("bad"); return { oid, email, name: oid }; }
 });
 const call = async (method, path, user, body) => {
@@ -29,12 +30,22 @@ test("writing needs sign-in; bad tokens rejected", async () => {
   assert.equal((await call("POST", "alerts", "garbage", { name: "x" })).status, 401);
 });
 
+test("phone notification subscription", async () => {
+  const sub = { endpoint: "https://push.example/owner", keys: { p256dh: "k", auth: "a" } };
+  assert.equal((await call("POST", "push/subscribe", null, { subscription: sub })).status, 401);
+  assert.equal((await call("POST", "push/subscribe", OWNER, { subscription: { endpoint: "http://x" } })).status, 400);
+  assert.equal((await call("POST", "push/subscribe", OWNER, { subscription: sub })).body.devices, 1);
+  assert.equal((await call("POST", "push/subscribe", OWNER, { subscription: { ...sub, endpoint: "https://push.example/gone" } })).body.devices, 2);
+});
+
 test("lost report + later found item -> one email to the owner", async () => {
   const a = await call("POST", "alerts", OWNER, { name: "Navy umbrella", cat: "Bags/Clothing", colors: ["Blue"], zone: "Dorm" });
   assert.equal(a.status, 201); assert.equal(a.body.match, null);
   const f = await call("POST", "items", FINDER, { name: "umbrella", cat: "Bags/Clothing", colors: ["Blue"], zone: "Dorm", keep: "Dorm Reception", a: "red handle", q: "Handle colour?" });
   assert.equal(f.status, 201); assert.equal(f.body.notified, true);
   assert.equal(mails.length, 1); assert.equal(mails[0].to, "owner@ue.de"); assert.match(mails[0].text, /Dorm Reception/);
+  assert.equal(pushes.length, 1); assert.equal(pushes[0].to, "https://push.example/owner"); assert.match(pushes[0].url, /#item=/);
+  assert.equal(JSON.parse(data.get("subs"))["u1"].length, 1, "expired device removed");
   const again = await call("GET", "alerts", OWNER);
   assert.equal(again.body[0].match.item.name, "umbrella");
   // a different-colour item must NOT trigger another mail

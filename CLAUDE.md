@@ -39,6 +39,7 @@ Students who lose something on campus can quickly and easily find out whether it
 ## Technical notes
 - Two modes: **demo** (file:// or GitHub Pages; `localStorage` key `uecf-v3`) and **live** (Netlify, when `/api/config` returns `MS_CLIENT_ID`).
 - Live mode: sign-in with Microsoft (MSAL redirect flow); the ID token is sent as Bearer and verified server-side. Ownership answers and finder emails never leave the server.
+- Phone notifications: Web Push (`web-push`, VAPID env keys), subscriptions in blob `subs`; `sw.js` shows them. Demo mode shows local notifications on the same device.
 - Storage period: items have `expires` (ISO). Finder or `ADMIN_EMAILS` can change it (and the storage place) on the detail screen.
 - Photos are resized with canvas to ≤360px JPEG before storing.
 - Demo ownership answers: wallet `computer`, earbuds `blue`, keys `bear`, tumbler `black`, boot `nike`.

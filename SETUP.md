@@ -34,6 +34,16 @@
 2. https://myaccount.google.com/apppasswords → 앱 비밀번호 생성 (16자리)
 3. 아래 `SMTP_*` 환경변수에 입력
 
+## 2-1. 휴대폰 알림 키 (Web Push, VAPID)
+
+터미널에서 한 번만 실행:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+나오는 **Public Key**와 **Private Key**를 아래 `VAPID_*` 환경변수에 넣습니다. (Private Key는 절대 GitHub에 올리지 마세요.)
+
 ## 3. Netlify 연결 (드래그&드롭 → Git 배포로 변경)
 
 서버 함수(`netlify/functions`)는 **드래그&드롭 배포로는 동작하지 않습니다.** GitHub 저장소를 연결해야 합니다.
@@ -53,6 +63,9 @@
 | `SMTP_PASS` | Gmail 앱 비밀번호 16자리 | ✅ (이메일) |
 | `MAIL_FROM` | `UE Campus Finder <ue.campus.finder@gmail.com>` | |
 | `APP_URL` | `https://lambent-pavlova-1fa1a2.netlify.app` | |
+| `VAPID_PUBLIC_KEY` | 위에서 만든 Public Key | ✅ (휴대폰 알림) |
+| `VAPID_PRIVATE_KEY` | 위에서 만든 Private Key | ✅ (휴대폰 알림) |
+| `VAPID_SUBJECT` | `mailto:ue.campus.finder@gmail.com` | |
 | `ALLOWED_EMAIL_DOMAINS` | `ue-germany.de,stud.ue-germany.de` | 학교 계정만 허용할 때 |
 | `ADMIN_EMAILS` | `lostandfound@ue-germany.de` | 분실물 센터 직원 (모든 물건의 보관기간 수정 가능) |
 
@@ -64,6 +77,8 @@
 2. 계정 A로 로그인 → *I lost something* 등록 (카테고리·색상 선택)
 3. 계정 B로 로그인 → 같은 카테고리/색상의 물건을 *I found something*으로 등록
 4. 계정 A 메일함에 “Possible match for your …” 메일 도착 → 링크를 누르면 해당 물건 상세 화면이 열림
+5. 계정 A 휴대폰에서 Alerts → **Turn on notifications** 를 켜 두었다면 휴대폰 알림도 옴
+   - Android: Chrome에서 바로 가능 / iPhone: 홈 화면에 추가한 앱에서만 가능 (iOS 16.4+)
 
 ## 누가 무엇을 할 수 있나
 

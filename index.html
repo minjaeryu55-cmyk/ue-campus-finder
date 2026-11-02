@@ -105,7 +105,7 @@ const esc=t=>String(t??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const $=id=>document.getElementById(id);
 const MSLOGO=`<svg width="16" height="16" viewBox="0 0 21 21" aria-hidden="true"><rect width="10" height="10" fill="#f25022"/><rect x="11" width="10" height="10" fill="#7fba00"/><rect y="11" width="10" height="10" fill="#00a4ef"/><rect x="11" y="11" width="10" height="10" fill="#ffb900"/></svg>`;
 
-let items=[],alerts=[],remote=false,CFG=null,MS=null,account=null,installEvt=null;
+let items=[],alerts=[],remote=false,CFG=null,MS=null,account=null,installEvt=null,swReg=null;
 let s={v:"home",prev:"home",q:"",cat:"",zone:"",col:"",cols:[],sel:null,toast:"",photo:"",claim:null,f:{},err:"",busy:false,loading:true,exp:null,kp:null};
 
 /* ---------- data: local demo mode (file:// or GitHub Pages) ---------- */
@@ -128,7 +128,8 @@ async function refresh(){
 async function doFound(d){
   if(remote){const r=await api("items",{method:"POST",body:d});items.unshift(r.item);return r.notified}
   const it={...d,id:newId(),createdAt:new Date().toISOString(),expires:Shared.addDays(Date.now(),d.days)};
-  items.unshift(it);localMatch();saveLocal();return alerts.some(a=>a.match&&a.match.item.id==it.id)}
+  items.unshift(it);localMatch();saveLocal();const hit=alerts.some(a=>a.match&&a.match.item.id==it.id);
+  if(hit&&s.pushOn)localNotify("🔔 Possible match: "+it.name,"Now at "+it.keep+". Tap to check it.","./#item="+it.id);return hit}
 async function doLost(d){
   if(remote){const a=await api("alerts",{method:"POST",body:d});alerts.unshift(a);return a.match}
   const a={...d,id:newId(),createdAt:new Date().toISOString()};alerts.unshift(a);localMatch();saveLocal();return a.match}
@@ -140,6 +141,45 @@ async function doClaim(id,answer){
 async function doExpiry(id,expires,keep){const i=items.find(x=>x.id==id);
   if(remote){Object.assign(i,await api("items/"+id,{method:"PATCH",body:{expires,keep}}));return}
   i.expires=expires;if(keep)i.keep=keep;saveLocal()}
+
+/* ---------- phone notifications (Web Push; demo mode shows them on this device only) ---------- */
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent),standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+function pushState(){
+  const ok=swReg&&"Notification" in window&&(!remote||"PushManager" in window);
+  if(!ok)return isIOS&&!standalone()?"ios-install":"unsupported";
+  if(remote&&!CFG.vapidPublicKey)return "unconfigured";
+  if(Notification.permission=="denied")return "denied";
+  return s.pushOn&&Notification.permission=="granted"?"on":"off"}
+function b64u(k){const p="=".repeat((4-k.length%4)%4),r=atob((k+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(r,c=>c.charCodeAt(0))}
+function localNotify(title,body,url){if(swReg&&"Notification" in window&&Notification.permission=="granted")
+  navigator.serviceWorker.ready.then(r=>r.showNotification(title,{body,icon:"icon-192.png",badge:"icon-192.png",data:{url}})).catch(()=>{})}
+function enablePush(){run(async()=>{
+  const perm=await Notification.requestPermission();
+  if(perm!="granted")throw new Error(perm=="denied"?"Notifications are blocked. Allow them for this site in your phone or browser settings.":"Notifications were not turned on.");
+  if(remote){const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(CFG.vapidPublicKey)});
+    await api("push/subscribe",{method:"POST",body:{subscription:sub.toJSON()}})}
+  else try{localStorage.setItem("uecf-push","1")}catch(_){}
+  s.pushOn=true;s.toast="✅ Phone notifications are on for this device.";
+  localNotify("Notifications are on","We’ll tell you here when a matching item is handed in.","./#alerts")})}
+function disablePush(){run(async()=>{
+  if(remote){const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();
+    if(sub){await api("push/unsubscribe",{method:"POST",body:{endpoint:sub.endpoint}});await sub.unsubscribe()}}
+  else try{localStorage.removeItem("uecf-push")}catch(_){}
+  s.pushOn=false;s.toast="Phone notifications are off for this device."})}
+async function checkPush(){if(!swReg||!("Notification" in window)||Notification.permission!="granted")return;
+  if(remote){if(!account||!("PushManager" in window))return;const reg=await navigator.serviceWorker.ready;s.pushOn=!!await reg.pushManager.getSubscription()}
+  else try{s.pushOn=localStorage.getItem("uecf-push")=="1"}catch(_){}
+  render()}
+function pushCard(){const st=pushState(),h=`<b>📱 Phone notifications</b>`;
+  const msg={
+    off:`${h}<div class="mu">Get a notification on this phone as soon as a matching item is handed in.</div><button class="btn" ${s.busy?"disabled":""} onclick="enablePush()">Turn on notifications</button>`,
+    on:`<div class="sec"><span>${h}<div class="mu">On for this device.</div></span><button class="lk" onclick="disablePush()">Turn off</button></div>`,
+    "ios-install":`${h}<div class="mu">On iPhone, add the app to your Home Screen first: tap <b>Share</b> → <b>Add to Home Screen</b>, then open it from there and turn notifications on.</div>`,
+    denied:`${h}<div class="mu">Notifications are blocked for this site. Allow them in your phone or browser settings.</div>`,
+    unsupported:`${h}<div class="mu">This browser can’t show notifications.${remote?" You’ll still get emails.":""}</div>`,
+    unconfigured:""}[st];
+  return msg?`<div class="card">${msg}</div>`:""}
 
 /* ---------- Microsoft sign-in (MSAL, redirect flow – works in installed mobile apps too) ---------- */
 const loadScript=src=>new Promise((ok,no)=>{const e=document.createElement("script");e.src=src;e.onload=ok;e.onerror=()=>no(new Error("Could not load sign-in"));document.head.appendChild(e)});
@@ -256,7 +296,7 @@ ${live().filter(i=>!s.zone||s.zone==NOMEM||i.zone==s.zone).map(itemCard).join(""
 
 alerts:()=>`${wf(7)}<h1>Alerts</h1>${toastHtml()}
 ${needLogin()?gate("Sign in to see your registered items and get matches by email."):
-(remote?`<div class="mu">📧 Matches are emailed to <b>${esc(email())}</b>${CFG.mail?"":" (email sending is not set up on the server yet)"}.</div>`:`<div class="mu">Demo mode: alerts show here. On the live site they are also emailed to you.</div>`)+
+(remote?`<div class="mu">📧 Matches are emailed to <b>${esc(email())}</b>${CFG.mail?"":" (email sending is not set up on the server yet)"}.</div>`:`<div class="mu">Demo mode: alerts show here and as a notification on this device. On the live site they are also emailed to you.</div>`)+pushCard()+
 (alerts.length?alerts.map(a=>{const m=a.match;return `<div class="card"><button class="x" aria-label="Remove alert" onclick="s.rm='${a.id}';render()">×</button>
 <div class="item"><div class="th">${a.photo?`<img src="${esc(a.photo)}" alt="">`:icon(a.cat)}</div><div><b>${esc(a.name)}</b> ${dots(a)}<div class="mu">${esc(a.cat||"No category")} · ${esc(a.zone||"No place")}</div></div></div>
 ${m?`<div class="toast">🔔 Possible match: ${esc(m.item.name)} → ${esc(m.item.keep)}<div class="mu">Why: ${m.why.join(" · ")}</div></div><button class="btn s" onclick="go('detail',{sel:'${m.item.id}'})">Check it</button>`:`<span class="tag w">Looking… we’ll ${remote?"email":"notify"} you</span>`}${s.rm==a.id?`<div class="row" style="margin-top:4px"><button class="btn s" onclick="s.rm=null;render()">Keep</button><button class="btn" onclick="s.rm=null;run(()=>doRemove('${a.id}'))">Remove alert</button></div>`:""}</div>`}).join("")
@@ -306,13 +346,14 @@ function render(keep){const a=document.activeElement,f=keep&&a&&a.id,p=f&&a.sele
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;render()});
 async function boot(){
   if(/^https?:$/.test(location.protocol)){
-    if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+    if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").then(r=>{swReg=r;checkPush()}).catch(()=>{});
+      navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.go){location.hash=new URL(e.data.go,location.href).hash}})}
     try{const r=await fetch("api/config",{cache:"no-store"});
       if(r.ok&&(r.headers.get("content-type")||"").includes("json")){CFG=await r.json();remote=!!CFG.clientId}}catch(_){}
   }
   if(remote){try{await initAuth()}catch(e){s.err=e.message}}else loadLocal();
   try{const a=JSON.parse(sessionStorage.getItem("uecf-after")||"null");sessionStorage.removeItem("uecf-after");if(a)Object.assign(s,a)}catch(_){}
-  route();await refresh()}
+  route();await refresh();checkPush()}
 function route(){const h=location.hash.match(/^#(item=([\w-]+)|lost|found|search|map|alerts)$/);if(!h)return;
   history.replaceState(null,"",location.pathname+location.search);if(h[2])go("detail",{prev:"home",sel:h[2]});else go(h[1])}
 addEventListener("hashchange",route);

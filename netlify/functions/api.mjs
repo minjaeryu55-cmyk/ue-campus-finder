@@ -3,9 +3,11 @@
 // - Users sign in with a Microsoft account in the browser (MSAL); the browser sends the ID token,
 //   which is verified here against Microsoft's public keys.
 // - Notification emails are sent over SMTP (e.g. a Gmail account with an app password).
+// - Phone notifications use Web Push (VAPID keys in env); subscriptions are stored per user.
 import { getStore } from "@netlify/blobs";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import nodemailer from "nodemailer";
+import webpush from "web-push";
 import Shared from "../../shared.js";
 
 const env = k => (globalThis.Netlify?.env?.get(k) ?? process.env[k] ?? "").trim();
@@ -15,7 +17,8 @@ const MAX_TRIES = 5;
 
 export let storeFactory = () => getStore({ name: "uecf", consistency: "strong" });
 export let mailer = null; // tests can replace this
-export const setTestHooks = h => { if (h.store) storeFactory = h.store; if (h.mailer) mailer = h.mailer; if (h.verify) verifyToken = h.verify; };
+export let pusher = null; // tests can replace this
+export const setTestHooks = h => { if (h.store) storeFactory = h.store; if (h.mailer) mailer = h.mailer; if (h.pusher) pusher = h.pusher; if (h.verify) verifyToken = h.verify; };
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const err = (status, message) => json({ error: message }, status);
@@ -67,6 +70,24 @@ async function sendMail(to, subject, text) {
   await t.sendMail({ from: env("MAIL_FROM") || `UE Campus Finder <${env("SMTP_USER")}>`, to, subject, text });
 }
 
+// Phone notifications to every device the user turned them on for. Dead subscriptions are removed.
+async function push(store, userId, payload) {
+  if (!userId) return;
+  const subs = await load(store, "subs", {});
+  const mine = subs[userId] || [];
+  if (!mine.length) return;
+  if (!pusher && !env("VAPID_PRIVATE_KEY")) return;
+  const send = pusher || ((sub, body) => webpush.sendNotification(sub, body, {
+    TTL: 86400, vapidDetails: { subject: env("VAPID_SUBJECT") || "mailto:" + (env("SMTP_USER") || "admin@example.com"), publicKey: env("VAPID_PUBLIC_KEY"), privateKey: env("VAPID_PRIVATE_KEY") }
+  }));
+  const keep = [];
+  for (const sub of mine) {
+    try { await send(sub, JSON.stringify(payload)); keep.push(sub); }
+    catch (e) { if (![404, 410].includes(e.statusCode)) { keep.push(sub); console.error("push failed", e.statusCode || e); } }
+  }
+  if (keep.length !== mine.length) { subs[userId] = keep; await store.setJSON("subs", subs); }
+}
+
 async function notifyMatch(req, alert, item) {
   const left = Shared.daysLeft(item.expires);
   await sendMail(alert.email, `Possible match for your ${alert.name}`,
@@ -96,6 +117,7 @@ async function runMatching(req, store, alerts, allItems, only) {
     if (al.notified.includes(m.item.id)) continue;
     al.notified.push(m.item.id); changed = true;
     try { await notifyMatch(req, al, m.item); } catch (e) { console.error("mail failed", e); }
+    try { await push(store, al.userId, { title: "🔔 Possible match: " + m.item.name, body: `Now at ${m.item.keep}. Tap to check it.`, url: "./#item=" + m.item.id, tag: "match-" + al.id }); } catch (e) { console.error("push failed", e); }
   }
   if (changed) await store.setJSON("alerts", alerts);
 }
@@ -108,7 +130,7 @@ export default async (req) => {
 
   if (path === "/config") {
     const clientId = env("MS_CLIENT_ID");
-    return json({ clientId, authority: `https://login.microsoftonline.com/${env("MS_TENANT") || "common"}`, mail: !!env("SMTP_HOST") });
+    return json({ clientId, authority: `https://login.microsoftonline.com/${env("MS_TENANT") || "common"}`, mail: !!env("SMTP_HOST"), vapidPublicKey: env("VAPID_PUBLIC_KEY") });
   }
 
   const store = storeFactory();
@@ -182,7 +204,24 @@ export default async (req) => {
       if (it.finderEmail && it.finderEmail !== user.email)
         await sendMail(it.finderEmail, `The owner of "${it.name}" was found`, `Thanks for handing it in! The owner verified ownership and will collect it at ${it.keep}.\n\nUE Campus Finder`);
     } catch (e) { console.error("mail failed", e); }
+    if (it.finderId !== user.id) await push(store, it.finderId, { title: "🙌 The owner was found", body: `"${it.name}" will be collected at ${it.keep}. Thank you!`, url: "./", tag: "claim-" + it.id }).catch(() => {});
     return json({ ok: true, keep: it.keep });
+  }
+
+  // ---- phone notifications ----
+  if (parts[0] === "push" && method === "POST") {
+    const no = needUser(); if (no) return no;
+    const sub = body.subscription || {};
+    const endpoint = String(sub.endpoint || body.endpoint || "");
+    if (!/^https:\/\//.test(endpoint) || endpoint.length > 1000) return err(400, "Invalid subscription");
+    const subs = await load(store, "subs", {});
+    const mine = (subs[user.id] || []).filter(s => s.endpoint !== endpoint);
+    if (parts[1] === "subscribe") {
+      if (!sub.keys?.p256dh || !sub.keys?.auth) return err(400, "Invalid subscription");
+      mine.push({ endpoint, keys: { p256dh: String(sub.keys.p256dh), auth: String(sub.keys.auth) } });
+    } else if (parts[1] !== "unsubscribe") return err(404, "Unknown endpoint");
+    subs[user.id] = mine.slice(-5); await store.setJSON("subs", subs);
+    return json({ ok: true, devices: subs[user.id].length });
   }
 
   // ---- alerts (my lost reports) ----
