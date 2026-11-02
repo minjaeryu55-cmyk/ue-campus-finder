@@ -80,11 +80,47 @@
     if (common.length) { score += common.length; why.push("similar description"); }
     return { score: Math.max(score, 0), why };
   }
-  const bestMatch = (lost, items) => items
+  const bestMatch = (lost, items) => lost.resolved ? null : items
     .filter(i => !i.claimed)
     .map(i => ({ item: i, ...match(lost, i) }))
     .filter(m => m.score > 0)
     .sort((a, b) => b.score - a.score)[0] || null;
+
+  // Where items are stored and when they can be picked up.
+  // NOTE: example opening hours – replace them with the real ones from each office.
+  const WK = [1, 2, 3, 4, 5];
+  const PLACES = {
+    "Library Desk": { where: "Library, ground floor – information desk", hours: [[WK, "09:00", "20:00"], [[6], "10:00", "16:00"]] },
+    "Lecture Hall A Office": { where: "Lecture Hall A, room A0.12 (building office)", hours: [[WK, "09:00", "17:00"]] },
+    "Cafeteria Counter": { where: "Cafeteria, cash desk", hours: [[WK, "08:00", "18:00"]] },
+    "Sports Hall Equipment Room": { where: "Sports Hall, equipment room next to the entrance", hours: [[WK, "10:00", "21:00"], [[6], "10:00", "18:00"]] },
+    "Dorm Reception": { where: "Student dorm, reception", hours: [[[0, 1, 2, 3, 4, 5, 6], "08:00", "22:00"]] },
+    "UE Central Lost & Found": { where: "Main building, Student Service Centre (room 0.04)", hours: [[[1, 2, 3, 4], "09:00", "16:00"], [[5], "09:00", "14:00"]] }
+  };
+  const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const toMin = s => +s.slice(0, 2) * 60 + +s.slice(3);
+  const dayRange = d => d.length === 7 ? "Daily" : d.length > 2 && d[d.length - 1] - d[0] === d.length - 1 ? `${DAYS[d[0]]}–${DAYS[d[d.length - 1]]}` : d.map(x => DAYS[x]).join(", ");
+  const hoursText = place => PLACES[place] ? PLACES[place].hours.map(([d, o, c]) => `${dayRange(d)} ${o}–${c}`).join(" · ") : "";
+  function openState(place, now = new Date()) {
+    const p = PLACES[place]; if (!p) return null;
+    const day = now.getDay(), m = now.getHours() * 60 + now.getMinutes();
+    for (const [d, o, c] of p.hours) if (d.includes(day) && m >= toMin(o) && m < toMin(c)) return { open: true, text: `Open now · until ${c}` };
+    for (let k = 0; k < 8; k++) {
+      const dd = (day + k) % 7;
+      const slot = p.hours.filter(([d, o]) => d.includes(dd) && (k > 0 || m < toMin(o))).sort((a, b) => toMin(a[1]) - toMin(b[1]))[0];
+      if (slot) return { open: false, text: `Closed · opens ${k === 0 ? "today" : k === 1 ? "tomorrow" : DAYS[dd]} ${slot[1]}` };
+    }
+    return { open: false, text: "Closed" };
+  }
+
+  // Things to do while waiting, by category (from the interviews: a lost wallet means cancelling cards and replacing IDs).
+  const CHECKLIST = {
+    "Wallet/Cards": ["Block your bank cards in your banking app or by phone", "Ask the Student Service Centre to block and replace your student ID", "If an official ID or residence permit was inside, report the loss to the police"],
+    "Electronics": ["Locate it with Find My (Apple) or Find My Device (Android/Samsung)", "Mark it as lost there so the finder sees a message", "Change important passwords if it is a phone or laptop"],
+    "Keys": ["Tell the dorm reception or your landlord if building keys are missing", "Check the pockets of bags and jackets you used that day"],
+    "Bags/Clothing": ["Write down what was inside the bag", "Check the sports hall shelves and changing rooms"],
+    "Bottles/Other": ["Check the last room you used – most items stay where they were left"]
+  };
 
   const DAY = 864e5;
   const daysLeft = expires => Math.ceil((new Date(expires) - Date.now()) / DAY);
@@ -105,5 +141,5 @@
     ];
   }
 
-  return { ZONES, CATS, NOMEM, COLORS, norm, sameAnswer, textMatch, match, bestMatch, daysLeft, addDays, seed, DAY };
+  return { ZONES, CATS, NOMEM, COLORS, PLACES, CHECKLIST, hoursText, openState, norm, sameAnswer, textMatch, match, bestMatch, daysLeft, addDays, seed, DAY };
 });

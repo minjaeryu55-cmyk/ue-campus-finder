@@ -19,6 +19,8 @@
 --sh:0 1px 2px rgba(23,37,42,.05),0 4px 14px rgba(23,37,42,.06);--hero:linear-gradient(135deg,#2f5d62 0%,#3f7a73 55%,#5e9a86 100%);--nav:rgba(255,255,255,.86);color-scheme:light}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111618;--card:#1b2225;--tx:#e9eeee;--mu:#93a2a6;--ac:#86c3c3;--ac-d:#a6d6d4;--ac2:#22393b;--bd:#2a3437;--ok:#6cc08b;--ok2:#1d3326;--wa:#e5ab52;--wa2:#3a2c16;--er:#f2b8b5;
 --sh:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);--hero:linear-gradient(135deg,#1d3d40 0%,#25504c 60%,#2f5f52 100%);--nav:rgba(27,34,37,.86);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#111618;--card:#1b2225;--tx:#e9eeee;--mu:#93a2a6;--ac:#86c3c3;--ac-d:#a6d6d4;--ac2:#22393b;--bd:#2a3437;--ok:#6cc08b;--ok2:#1d3326;--wa:#e5ab52;--wa2:#3a2c16;--er:#f2b8b5;
+--sh:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);--hero:linear-gradient(135deg,#1d3d40 0%,#25504c 60%,#2f5f52 100%);--nav:rgba(27,34,37,.86);color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0}
 body{background:var(--bg);color:var(--tx);font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.45;overscroll-behavior-y:none;-webkit-font-smoothing:antialiased}
 #app{max-width:480px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(100px + env(safe-area-inset-bottom,0px))}
@@ -84,6 +86,18 @@ nav button.on{color:var(--ac)}nav button.on span{background:var(--ac2)}
 .card{position:relative}.x{position:absolute;top:8px;right:8px;background:none;border:0;color:var(--mu);font-size:22px;cursor:pointer;line-height:1;min-width:36px;min-height:36px;border-radius:50%}
 .btn:active,.chip:active,.zone:active,.item:active,.act:active{transform:scale(.98)}
 :focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:650;padding:3px 10px;border-radius:99px;background:var(--ac2);color:var(--mu)}
+.pill:before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}.pill.open{background:var(--ok2);color:var(--ok)}
+.done{opacity:.72}.done .th{filter:grayscale(1)}
+details.wait{margin-top:10px;border-top:1px solid var(--bd);padding-top:8px}details.wait summary{cursor:pointer;font-weight:650;font-size:14px;color:var(--ac);min-height:36px;display:flex;align-items:center;list-style:none}
+details.wait summary::-webkit-details-marker{display:none}details.wait summary:after{content:"▾";margin-left:6px;transition:transform .2s}details.wait[open] summary:after{transform:rotate(180deg)}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:14px;padding:6px 0;margin:0;font-weight:400}.chk input{width:20px;height:20px;min-height:0;margin:1px 0 0;flex:none;accent-color:var(--ac)}
+.chk input:checked+span{text-decoration:line-through;color:var(--mu)}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px}.top>span{display:flex;align-items:center;gap:8px}.top .wf{float:none}
+.sk{background:linear-gradient(90deg,var(--ac2) 25%,var(--bg) 50%,var(--ac2) 75%);background-size:200% 100%;animation:sk 1.2s infinite linear;border-radius:8px}
+@keyframes sk{to{background-position:-200% 0}}@media (prefers-reduced-motion:reduce){.sk{animation:none}}
+.desk{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--bd)}.desk:first-of-type{border-top:0}
+.desk>div{min-width:0}
 @media (hover:hover){.item:hover,.zone:hover,.act:hover{border-color:var(--ac)}}
 </style>
 </head>
@@ -103,8 +117,8 @@ const esc=t=>String(t??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const $=id=>document.getElementById(id);
 const MSLOGO=`<svg width="16" height="16" viewBox="0 0 21 21" aria-hidden="true"><rect width="10" height="10" fill="#f25022"/><rect x="11" width="10" height="10" fill="#7fba00"/><rect y="11" width="10" height="10" fill="#00a4ef"/><rect x="11" y="11" width="10" height="10" fill="#ffb900"/></svg>`;
 
-let items=[],alerts=[],remote=false,CFG=null,MS=null,account=null,installEvt=null;
-let s={v:"home",prev:"home",q:"",cat:"",zone:"",col:"",cols:[],sel:null,toast:"",photo:"",claim:null,f:{},err:"",busy:false,loading:true,exp:null,kp:null};
+let items=[],alerts=[],remote=false,CFG=null,MS=null,account=null,installEvt=null,swReg=null;
+let s={v:"home",prev:"home",q:"",cat:"",zone:"",col:"",cols:[],sel:null,toast:"",photo:"",claim:null,f:{},err:"",busy:false,loading:true,exp:null,kp:null,op:{},sort:"new"};
 
 /* ---------- data: local demo mode (file:// or GitHub Pages) ---------- */
 function loadLocal(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY)||"null")}catch(_){}
@@ -126,18 +140,61 @@ async function refresh(){
 async function doFound(d){
   if(remote){const r=await api("items",{method:"POST",body:d});items.unshift(r.item);return r.notified}
   const it={...d,id:newId(),createdAt:new Date().toISOString(),expires:Shared.addDays(Date.now(),d.days)};
-  items.unshift(it);localMatch();saveLocal();return alerts.some(a=>a.match&&a.match.item.id==it.id)}
+  items.unshift(it);localMatch();saveLocal();const hit=alerts.some(a=>a.match&&a.match.item.id==it.id);
+  if(hit&&s.pushOn)localNotify("🔔 Possible match: "+it.name,"Now at "+it.keep+". Tap to check it.","./#item="+it.id);return hit}
 async function doLost(d){
   if(remote){const a=await api("alerts",{method:"POST",body:d});alerts.unshift(a);return a.match}
   const a={...d,id:newId(),createdAt:new Date().toISOString()};alerts.unshift(a);localMatch();saveLocal();return a.match}
 async function doRemove(id){if(remote)await api("alerts/"+id,{method:"DELETE"});alerts=alerts.filter(a=>a.id!=id);saveLocal()}
 async function doClaim(id,answer){
-  if(remote){const r=await api(`items/${id}/claim`,{method:"POST",body:{answer}});if(r.ok){const i=items.find(x=>x.id==id);if(i)i.claimed=true}return r}
+  if(remote){const r=await api(`items/${id}/claim`,{method:"POST",body:{answer}});if(r.ok){const i=items.find(x=>x.id==id);if(i)i.claimed=true;if(r.solved)alerts=await api("alerts")}return r}
   const i=items.find(x=>x.id==id);if(!Shared.sameAnswer(answer,i.a))return{ok:false};
-  i.claimed={at:new Date().toISOString()};localMatch();saveLocal();return{ok:true,keep:i.keep}}
+  i.claimed={at:new Date().toISOString()};alerts.forEach(a=>{if(!a.resolved&&Shared.match(a,i).score>0)a.resolved=true});localMatch();saveLocal();return{ok:true,keep:i.keep}}
+async function doResolve(id,v){const a=alerts.find(x=>x.id==id);
+  if(remote){Object.assign(a,await api("alerts/"+id,{method:"PATCH",body:{resolved:v}}));alerts=await api("alerts");return}
+  a.resolved=v;localMatch();saveLocal()}
 async function doExpiry(id,expires,keep){const i=items.find(x=>x.id==id);
   if(remote){Object.assign(i,await api("items/"+id,{method:"PATCH",body:{expires,keep}}));return}
   i.expires=expires;if(keep)i.keep=keep;saveLocal()}
+
+/* ---------- phone notifications (Web Push; demo mode shows them on this device only) ---------- */
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent),standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+function pushState(){
+  const ok=swReg&&"Notification" in window&&(!remote||"PushManager" in window);
+  if(!ok)return isIOS&&!standalone()?"ios-install":"unsupported";
+  if(remote&&!CFG.vapidPublicKey)return "unconfigured";
+  if(Notification.permission=="denied")return "denied";
+  return s.pushOn&&Notification.permission=="granted"?"on":"off"}
+function b64u(k){const p="=".repeat((4-k.length%4)%4),r=atob((k+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(r,c=>c.charCodeAt(0))}
+function localNotify(title,body,url){if(swReg&&"Notification" in window&&Notification.permission=="granted")
+  navigator.serviceWorker.ready.then(r=>r.showNotification(title,{body,icon:"icon-192.png",badge:"icon-192.png",data:{url}})).catch(()=>{})}
+function enablePush(){run(async()=>{
+  const perm=await Notification.requestPermission();
+  if(perm!="granted")throw new Error(perm=="denied"?"Notifications are blocked. Allow them for this site in your phone or browser settings.":"Notifications were not turned on.");
+  if(remote){const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(CFG.vapidPublicKey)});
+    await api("push/subscribe",{method:"POST",body:{subscription:sub.toJSON()}})}
+  else try{localStorage.setItem("uecf-push","1")}catch(_){}
+  s.pushOn=true;s.toast="✅ Phone notifications are on for this device.";
+  localNotify("Notifications are on","We’ll tell you here when a matching item is handed in.","./#alerts")})}
+function disablePush(){run(async()=>{
+  if(remote){const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();
+    if(sub){await api("push/unsubscribe",{method:"POST",body:{endpoint:sub.endpoint}});await sub.unsubscribe()}}
+  else try{localStorage.removeItem("uecf-push")}catch(_){}
+  s.pushOn=false;s.toast="Phone notifications are off for this device."})}
+async function checkPush(){if(!swReg||!("Notification" in window)||Notification.permission!="granted")return;
+  if(remote){if(!account||!("PushManager" in window))return;const reg=await navigator.serviceWorker.ready;s.pushOn=!!await reg.pushManager.getSubscription()}
+  else try{s.pushOn=localStorage.getItem("uecf-push")=="1"}catch(_){}
+  render()}
+function pushCard(){const st=pushState(),h=`<b>📱 Phone notifications</b>`;if(st=="unsupported"&&!remote)return "";
+  const msg={
+    off:`${h}<div class="mu">Get a notification on this phone as soon as a matching item is handed in.</div><button class="btn" ${s.busy?"disabled":""} onclick="enablePush()">Turn on notifications</button>`,
+    on:`<div class="sec"><span>${h}<div class="mu">On for this device.</div></span><button class="lk" onclick="disablePush()">Turn off</button></div>`,
+    "ios-install":`${h}<div class="mu">On iPhone, add the app to your Home Screen first: tap <b>Share</b> → <b>Add to Home Screen</b>, then open it from there and turn notifications on.</div>`,
+    denied:`${h}<div class="mu">Notifications are blocked for this site. Allow them in your phone or browser settings.</div>`,
+    unsupported:`${h}<div class="mu">This browser can’t show notifications.${remote?" You’ll still get emails.":""}</div>`,
+    unconfigured:""}[st];
+  return msg?`<div class="card">${msg}</div>`:""}
 
 /* ---------- Microsoft sign-in (MSAL, redirect flow – works in installed mobile apps too) ---------- */
 const loadScript=src=>new Promise((ok,no)=>{const e=document.createElement("script");e.src=src;e.onload=ok;e.onerror=()=>no(new Error("Could not load sign-in"));document.head.appendChild(e)});
@@ -167,6 +224,14 @@ const fmt=iso=>new Date(iso).toLocaleDateString("en-GB",{weekday:"short",day:"nu
 function ago(iso){const d=Math.floor((Date.now()-new Date(iso))/Shared.DAY);return d<=0?"Today":d==1?"Yesterday":d+" days ago"}
 function left(i){const d=Shared.daysLeft(i.expires);return d>0?`<span class="tag ${d<=3?"w":""}">${d} day${d==1?"":"s"} left</span>`:`<span class="tag w">Storage period ended</span>`}
 const wf=n=>`<span class="wf">Wireframe ${n}</span>`;
+const skel=()=>[1,2].map(()=>`<div class="card item"><div class="th sk"></div><div style="flex:1"><div class="sk" style="height:14px;width:70%"></div><div class="sk" style="height:12px;width:45%;margin-top:8px"></div><div class="sk" style="height:18px;width:55%;margin-top:10px"></div></div></div>`).join("");
+const pill=place=>{const o=Shared.openState(place);return o?`<span class="pill ${o.open?"open":""}">${o.text}</span>`:""};
+let checks={};try{checks=JSON.parse(localStorage.getItem("uecf-check")||"{}")}catch(_){}
+function tick(id,k,on){const a=new Set(checks[id]||[]);on?a.add(k):a.delete(k);checks[id]=[...a];try{localStorage.setItem("uecf-check",JSON.stringify(checks))}catch(_){}}
+function share(id){const i=items.find(x=>x.id==id),url=location.origin+location.pathname+"#item="+id,text=`Found at UE: ${i.name} – now at ${i.keep}`;
+  if(navigator.share)return navigator.share({title:"UE Campus Finder",text,url}).catch(()=>{});
+  const done=m=>{s.toast=m;render()};
+  try{navigator.clipboard.writeText(url).then(()=>done("🔗 Link copied – send it to whoever lost it."),()=>done("Link: "+url))}catch(_){done("Link: "+url)}}
 const toastHtml=()=>s.toast?`<div class="toast" role="status">${s.toast}</div>`:"";
 const errHtml=()=>s.err?`<div class="err" role="alert">${esc(s.err)}</div>`:"";
 function go(v,x={}){if(v=="detail"&&s.v!="detail")s.prev=s.v;
@@ -180,8 +245,9 @@ function chips(key,lk,multi){return `<div class="chips" role="group">${L[lk].map
 function pick(key,lk,k,multi){const n=L[lk][k];
   if(multi){const a=s[key],i=a.indexOf(n);i>=0?a.splice(i,1):(a.push(n),a.length>2&&a.shift())}else s[key]=s[key]==n?"":n;render()}
 const field=(k,label,ph,extra="")=>`<label for="f_${k}">${label}</label><input id="f_${k}" value="${esc(s.f[k])}" placeholder="${ph}" oninput="s.f.${k}=this.value" maxlength="80" ${extra}>`;
-function results(){return live().filter(i=>Shared.textMatch(s.q,i)&&(!s.cat||i.cat==s.cat)
-  &&(!s.col||!(i.colors||[]).length||i.colors.some(c=>c==s.col||c=="Multi"))&&(!s.zone||s.zone==NOMEM||i.zone==s.zone))}
+function results(){const r=live().filter(i=>Shared.textMatch(s.q,i)&&(!s.cat||i.cat==s.cat)
+  &&(!s.col||!(i.colors||[]).length||i.colors.some(c=>c==s.col||c=="Multi"))&&(!s.zone||s.zone==NOMEM||i.zone==s.zone));
+  return s.sort=="soon"?r.sort((a,b)=>new Date(a.expires)-new Date(b.expires)):r.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))}
 function photoBtn(){return `<input type="file" accept="image/*" id="pf" style="display:none" onchange="pickPhoto(this)"><button type="button" class="btn s" onclick="$('pf').click()">${s.photo?"✅ Photo added (tap to change)":"📷 Take or add a photo"}</button>${s.photo?`<div class="bigimg" style="height:120px;margin-top:8px"><img src="${s.photo}" alt=""></div>`:""}`}
 function pickPhoto(el){const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,360/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*k;c.height=im.height*k;c.getContext("2d").drawImage(im,0,0,c.width,c.height);s.photo=c.toDataURL("image/jpeg",.7);render()};im.src=r.result};r.readAsDataURL(f)}
 function acct(){
@@ -207,20 +273,21 @@ ${acct()}${installBox()}
 <div class="acts"><button class="act" onclick="go('lost')"><div class="ic">😟</div><b>I lost something</b><span>Get an alert when it turns up</span></button>
 <button class="act f" onclick="go('found')"><div class="ic">🙌</div><b>I found something</b><span>Tell us where you left it</span></button></div>
 <h2>Browse by category</h2><div class="hs">${CATS.map(c=>`<button class="chip" onclick="go('search',{cat:'${c[0]}',q:'',zone:'',col:''})">${c[1]} ${c[0]}</button>`).join("")}</div>
-<div class="sec"><h2>Just handed in</h2><button class="lk" onclick="go('search',{q:'',cat:'',zone:'',col:''})">See all</button></div>${s.loading?`<div class="card mu">Loading…</div>`:live().slice(0,3).map(itemCard).join("")||`<div class="card mu">Nothing handed in yet.</div>`}
+<div class="sec"><h2>Just handed in</h2><button class="lk" onclick="go('search',{q:'',cat:'',zone:'',col:''})">See all</button></div>${s.loading?skel():live().slice(0,3).map(itemCard).join("")||`<div class="card mu">Nothing handed in yet.</div>`}
 <div class="mu">Library, cafeteria and central office listings, all in one place.</div>
 ${remote?"":`<button class="lk" onclick="localStorage.removeItem(KEY);loadLocal();localMatch();render()">Reset demo data</button>`}`,
 
 search:()=>{const r=results();return `${wf(2)}<h1>Search</h1>${toastHtml()}<input type="search" id="sq" placeholder="Search by name, brand or colour" value="${esc(s.q)}" oninput="s.q=this.value;render(true)" enterkeyhint="search">
 <div class="mu">Different words are understood: “gray” = grey, “navy” = blue, “AirPods” = earbuds.</div>
 <label>Category</label>${chips("cat","cat")}<label>Colour</label>${chips("col","col")}<label>Where did you lose it? (as much as you remember)</label>${chips("zone","zone")}
-<div class="mu" aria-live="polite">${r.length} found</div>${r.map(itemCard).join("")||`<div class="card">No match yet.<button class="btn" onclick="toLost()">Get notified when it’s found</button></div>`}`},
+<div class="sec" style="margin-top:12px"><div class="mu" aria-live="polite">${r.length} found</div><div class="chips" role="group" aria-label="Sort">${[["new","Newest"],["soon","Ending soon"]].map(([k,l])=>`<button class="chip ${(s.sort||"new")==k?"on":""}" aria-pressed="${(s.sort||"new")==k}" onclick="s.sort='${k}';render()">${l}</button>`).join("")}</div></div>${s.loading?skel():""}${r.map(itemCard).join("")||`<div class="card">No match yet.<button class="btn" onclick="toLost()">Get notified when it’s found</button></div>`}`},
 
 detail:()=>{const i=items.find(x=>x.id==s.sel);
   if(!i)return `<button class="back" onclick="go('home')">← Home</button><div class="card">${s.loading?"Loading…":"This item is no longer listed."}</div>`;
-  return `${wf(3)}<button class="back" onclick="go(s.prev)">← Back</button>${toastHtml()}
+  return `<div class="top"><button class="back" onclick="go(s.prev)">← Back</button><span><button class="btn s sm" onclick="share('${i.id}')">↗ Share</button> ${wf(3)}</span></div>${toastHtml()}
 <div class="card"><div class="bigimg">${pic(i)}</div><h2 style="margin-top:14px">${esc(i.name)} ${dots(i)}</h2>${left(i)}
-<div class="info"><div><i>📍</i><span>Currently at <b>${esc(i.keep)}</b></span></div><div><i>🔎</i><span>Found at ${esc(i.zone)} · ${ago(i.createdAt)}</span></div>
+<div class="info"><div><i>📍</i><span>Currently at <b>${esc(i.keep)}</b>${Shared.PLACES[i.keep]?`<br><span class="mu">${Shared.PLACES[i.keep].where}</span>`:""}</span></div>
+${Shared.PLACES[i.keep]?`<div><i>🕘</i><span>${pill(i.keep)}<br><span class="mu">${Shared.hoursText(i.keep)}</span></span></div>`:""}<div><i>🔎</i><span>Found at ${esc(i.zone)} · ${ago(i.createdAt)}</span></div>
 ${i.brand?`<div><i>🏷️</i><span>${esc(i.brand)}</span></div>`:""}<div><i>⏳</i><span>Kept until <b>${fmt(i.expires)}</b><br><span class="mu">Then it moves to the UE Central Office or is discarded.</span></span></div></div></div>
 ${canEdit(i)&&!i.claimed?editor(i):""}${claimBox(i)}`},
 
@@ -249,15 +316,20 @@ ${field("a","Correct answer (kept private)","one or two words, e.g. red",'autoco
 ${errHtml()}<button class="btn" ${s.busy?"disabled":""} onclick="submitFound()">${s.busy?"Saving…":"Submit"}</button></div>`}`},
 
 map:()=>`${wf(6)}<h1>UE Campus Map</h1><div class="mu">Tap a place to see what was found there.</div>
-<div class="map">${ZONES.map((z,k)=>`<button class="zone ${s.zone==z[0]?"on":""}" aria-pressed="${s.zone==z[0]}" onclick="pick('zone','fzone',${k})"><b>${z[1]}</b>${z[0]}<div class="mu">${live().filter(i=>i.zone==z[0]).length} items</div></button>`).join("")}</div>
-${live().filter(i=>!s.zone||s.zone==NOMEM||i.zone==s.zone).map(itemCard).join("")}`,
+<div class="map">${ZONES.map((z,k)=>`<button class="zone ${s.zone==z[0]?"on":""}" aria-pressed="${s.zone==z[0]}" onclick="pick('zone','fzone',${k})"><b>${z[1]}</b>${z[0]}<div class="mu">${(n=>n+(n==1?" item":" items"))(live().filter(i=>i.zone==z[0]).length)}</div></button>`).join("")}</div>
+${live().filter(i=>!s.zone||s.zone==NOMEM||i.zone==s.zone).map(itemCard).join("")}
+<h2>Pick-up desks</h2><div class="card">${Object.entries(Shared.PLACES).map(([n,p])=>`<div class="desk"><div><b>${n}</b><div class="mu">${p.where}</div><div class="mu">${Shared.hoursText(n)}</div></div>${pill(n)}</div>`).join("")}</div>
+<div class="mu">Opening hours are examples for this prototype.</div>`,
 
 alerts:()=>`${wf(7)}<h1>Alerts</h1>${toastHtml()}
 ${needLogin()?gate("Sign in to see your registered items and get matches by email."):
-(remote?`<div class="mu">📧 Matches are emailed to <b>${esc(email())}</b>${CFG.mail?"":" (email sending is not set up on the server yet)"}.</div>`:`<div class="mu">Demo mode: alerts show here. On the live site they are also emailed to you.</div>`)+
-(alerts.length?alerts.map(a=>{const m=a.match;return `<div class="card"><button class="x" aria-label="Remove alert" onclick="if(confirm('Remove this alert?'))run(()=>doRemove('${a.id}'))">×</button>
+(remote?`<div class="mu">📧 Matches are emailed to <b>${esc(email())}</b>${CFG.mail?"":" (email sending is not set up on the server yet)"}.</div>`:`<div class="mu">Demo mode: alerts show here and as a notification on this device. On the live site they are also emailed to you.</div>`)+pushCard()+
+(alerts.length?alerts.map((a,ai)=>{const m=a.match,cl=Shared.CHECKLIST[a.cat]||[],done=(checks[a.id]||[]).length;return `<div class="card ${a.resolved?"done":""}"><button class="x" aria-label="Remove alert" onclick="s.rm='${a.id}';render()">×</button>
 <div class="item"><div class="th">${a.photo?`<img src="${esc(a.photo)}" alt="">`:icon(a.cat)}</div><div><b>${esc(a.name)}</b> ${dots(a)}<div class="mu">${esc(a.cat||"No category")} · ${esc(a.zone||"No place")}</div></div></div>
-${m?`<div class="toast">🔔 Possible match: ${esc(m.item.name)} → ${esc(m.item.keep)}<div class="mu">Why: ${m.why.join(" · ")}</div></div><button class="btn s" onclick="go('detail',{sel:'${m.item.id}'})">Check it</button>`:`<span class="tag w">Looking… we’ll ${remote?"email":"notify"} you</span>`}</div>`}).join("")
+${a.resolved?`<div class="sec" style="margin-top:8px"><span class="tag o">✅ Found – no more alerts</span><button class="lk" onclick="run(()=>doResolve('${a.id}',false))">Still missing?</button></div>`:
+`${m?`<div class="toast">🔔 Possible match: ${esc(m.item.name)} → ${esc(m.item.keep)}<div class="mu">Why: ${m.why.join(" · ")}</div></div><button class="btn s" onclick="go('detail',{sel:'${m.item.id}'})">Check it</button>`:`<span class="tag w">Looking… we’ll ${remote?"email":"notify"} you</span>`}
+${cl.length?`<details class="wait" ${(s.op[a.id]??(ai==0&&done<cl.length))?"open":""} ontoggle="s.op['${a.id}']=this.open"><summary>While you wait · ${done}/${cl.length} done</summary>${cl.map((c,k)=>`<label class="chk"><input type="checkbox" ${(checks[a.id]||[]).includes(k)?"checked":""} onchange="tick('${a.id}',${k},this.checked);render()"><span>${c}</span></label>`).join("")}</details>`:""}
+<button class="lk" onclick="run(()=>doResolve('${a.id}',true))">I found it myself</button>`}${s.rm==a.id?`<div class="row" style="margin-top:4px"><button class="btn s" onclick="s.rm=null;render()">Keep</button><button class="btn" onclick="s.rm=null;run(()=>doRemove('${a.id}'))">Remove alert</button></div>`:""}</div>`}).join("")
 :`<div class="card mu">You haven’t registered anything yet.<button class="btn s" onclick="go('lost')">😟 I lost something</button></div>`)}`
 };
 
@@ -273,7 +345,7 @@ function bump(n){const i=items.find(x=>x.id==s.sel),base=new Date((s.exp||ymd(i.
 function saveExp(){const id=s.sel,v=s.exp||ymd(items.find(x=>x.id==id).expires),kp=s.kp;
   run(async()=>{await doExpiry(id,endOf(v),kp);s.exp=null;s.kp=null;s.toast="✅ Storage period updated."})}
 function claimBox(i){const c=s.claim;
-  if(c&&c.ok)return `<div class="toast">✅ Verified! Collect it at ${esc(c.keep||i.keep)} with your student ID.${remote?" We’ve emailed you the pickup details.":""} (The finder’s contact details stay private.)</div>`;
+  if(c&&c.ok){const k=c.keep||i.keep,P=Shared.PLACES[k];return `<div class="toast">✅ Verified! Collect it at ${esc(k)} with your student ID.${P?`<div class="mu" style="margin-top:4px">${P.where} · ${Shared.hoursText(k)}</div>`:""}${remote?`<div class="mu">We’ve emailed you the pickup details.</div>`:""}<div class="mu">The finder’s contact details stay private.</div></div>`}
   if(i.claimed)return `<div class="card mu">This item has been claimed.</div>`;
   if(needLogin())return gate("To protect owners, please sign in before claiming. We’ll email you the pickup details.");
   return `<div class="card"><b>Is this yours?</b><div class="mu">Answer the ownership question to claim it.</div><label for="ans">${esc(i.q)}</label>
@@ -304,13 +376,14 @@ function render(keep){const a=document.activeElement,f=keep&&a&&a.id,p=f&&a.sele
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;render()});
 async function boot(){
   if(/^https?:$/.test(location.protocol)){
-    if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+    if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").then(r=>{swReg=r;checkPush()}).catch(()=>{});
+      navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.go){location.hash=new URL(e.data.go,location.href).hash}})}
     try{const r=await fetch("api/config",{cache:"no-store"});
       if(r.ok&&(r.headers.get("content-type")||"").includes("json")){CFG=await r.json();remote=!!CFG.clientId}}catch(_){}
   }
   if(remote){try{await initAuth()}catch(e){s.err=e.message}}else loadLocal();
   try{const a=JSON.parse(sessionStorage.getItem("uecf-after")||"null");sessionStorage.removeItem("uecf-after");if(a)Object.assign(s,a)}catch(_){}
-  route();await refresh()}
+  route();await refresh();checkPush()}
 function route(){const h=location.hash.match(/^#(item=([\w-]+)|lost|found|search|map|alerts)$/);if(!h)return;
   history.replaceState(null,"",location.pathname+location.search);if(h[2])go("detail",{prev:"home",sel:h[2]});else go(h[1])}
 addEventListener("hashchange",route);

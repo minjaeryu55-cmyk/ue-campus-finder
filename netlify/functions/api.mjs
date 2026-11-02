@@ -3,9 +3,11 @@
 // - Users sign in with a Microsoft account in the browser (MSAL); the browser sends the ID token,
 //   which is verified here against Microsoft's public keys.
 // - Notification emails are sent over SMTP (e.g. a Gmail account with an app password).
+// - Phone notifications use Web Push (VAPID keys in env); subscriptions are stored per user.
 import { getStore } from "@netlify/blobs";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import nodemailer from "nodemailer";
+import webpush from "web-push";
 import Shared from "../../shared.js";
 
 const env = k => (globalThis.Netlify?.env?.get(k) ?? process.env[k] ?? "").trim();
@@ -15,7 +17,8 @@ const MAX_TRIES = 5;
 
 export let storeFactory = () => getStore({ name: "uecf", consistency: "strong" });
 export let mailer = null; // tests can replace this
-export const setTestHooks = h => { if (h.store) storeFactory = h.store; if (h.mailer) mailer = h.mailer; if (h.verify) verifyToken = h.verify; };
+export let pusher = null; // tests can replace this
+export const setTestHooks = h => { if (h.store) storeFactory = h.store; if (h.mailer) mailer = h.mailer; if (h.pusher) pusher = h.pusher; if (h.verify) verifyToken = h.verify; };
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const err = (status, message) => json({ error: message }, status);
@@ -55,7 +58,7 @@ const publicItem = (i, u) => {
   return { ...rest, canEdit: !!u && (u.admin || u.id === finderId) };
 };
 
-function appUrl(req) { return env("APP_URL") || new URL(req.url).origin; }
+function appUrl(req) { return env("APP_URL") || env("URL") || (req ? new URL(req.url).origin : ""); }
 
 async function sendMail(to, subject, text) {
   if (mailer) return mailer({ to, subject, text });
@@ -67,6 +70,24 @@ async function sendMail(to, subject, text) {
   await t.sendMail({ from: env("MAIL_FROM") || `UE Campus Finder <${env("SMTP_USER")}>`, to, subject, text });
 }
 
+// Phone notifications to every device the user turned them on for. Dead subscriptions are removed.
+async function push(store, userId, payload) {
+  if (!userId) return;
+  const subs = await load(store, "subs", {});
+  const mine = subs[userId] || [];
+  if (!mine.length) return;
+  if (!pusher && !env("VAPID_PRIVATE_KEY")) return;
+  const send = pusher || ((sub, body) => webpush.sendNotification(sub, body, {
+    TTL: 86400, vapidDetails: { subject: env("VAPID_SUBJECT") || "mailto:" + (env("SMTP_USER") || "admin@example.com"), publicKey: env("VAPID_PUBLIC_KEY"), privateKey: env("VAPID_PRIVATE_KEY") }
+  }));
+  const keep = [];
+  for (const sub of mine) {
+    try { await send(sub, JSON.stringify(payload)); keep.push(sub); }
+    catch (e) { if (![404, 410].includes(e.statusCode)) { keep.push(sub); console.error("push failed", e.statusCode || e); } }
+  }
+  if (keep.length !== mine.length) { subs[userId] = keep; await store.setJSON("subs", subs); }
+}
+
 async function notifyMatch(req, alert, item) {
   const left = Shared.daysLeft(item.expires);
   await sendMail(alert.email, `Possible match for your ${alert.name}`,
@@ -76,7 +97,7 @@ Something similar to the item you reported ("${alert.name}") has been handed in:
 
   ${item.name}${item.colors?.length ? " (" + item.colors.join(", ") + ")" : ""}
   Found at: ${item.zone}
-  Stored at: ${item.keep}
+  Stored at: ${item.keep}${Shared.PLACES[item.keep] ? "\n  Where: " + Shared.PLACES[item.keep].where + "\n  Opening hours: " + Shared.hoursText(item.keep) : ""}
   Kept for: ${left} more day(s)
 
 Open the app to check it and answer the ownership question:
@@ -96,8 +117,44 @@ async function runMatching(req, store, alerts, allItems, only) {
     if (al.notified.includes(m.item.id)) continue;
     al.notified.push(m.item.id); changed = true;
     try { await notifyMatch(req, al, m.item); } catch (e) { console.error("mail failed", e); }
+    try { await push(store, al.userId, { title: "🔔 Possible match: " + m.item.name, body: `Now at ${m.item.keep}. Tap to check it.`, url: "./#item=" + m.item.id, tag: "match-" + al.id }); } catch (e) { console.error("push failed", e); }
   }
   if (changed) await store.setJSON("alerts", alerts);
+}
+
+// Daily: remind owners of a matched, unclaimed item when its storage period ends within 3 days.
+export async function runReminders(store = storeFactory()) {
+  const alerts = await load(store, "alerts", []);
+  const all = await items(store);
+  let sent = 0;
+  for (const al of alerts) {
+    const m = Shared.bestMatch(al, all);
+    if (!m) continue;
+    const left = Shared.daysLeft(m.item.expires);
+    al.reminded = al.reminded || [];
+    if (left < 1 || left > 3 || al.reminded.includes(m.item.id)) continue;
+    al.reminded.push(m.item.id); sent++;
+    const when = new Date(m.item.expires).toDateString();
+    try {
+      await sendMail(al.email, `Only ${left} day(s) left to pick up "${m.item.name}"`,
+`Hi ${al.ownerName || ""},
+
+The item that matches your report "${al.name}" is only kept until ${when}:
+
+  ${m.item.name} – ${m.item.keep}${Shared.PLACES[m.item.keep] ? "\n  Opening hours: " + Shared.hoursText(m.item.keep) : ""}
+
+After that it moves to the central office or is discarded.
+If it is yours, open the app and answer the ownership question:
+${appUrl()}/#item=${m.item.id}
+
+If you already found your item, open Alerts and tap "I found it".
+
+UE Campus Finder`);
+    } catch (e) { console.error("mail failed", e); }
+    await push(store, al.userId, { title: `⏳ ${left} day${left > 1 ? "s" : ""} left: ${m.item.name}`, body: `Pick it up at ${m.item.keep} before ${when}.`, url: "./#item=" + m.item.id, tag: "remind-" + al.id }).catch(() => {});
+  }
+  if (sent) await store.setJSON("alerts", alerts);
+  return sent;
 }
 
 export default async (req) => {
@@ -108,7 +165,7 @@ export default async (req) => {
 
   if (path === "/config") {
     const clientId = env("MS_CLIENT_ID");
-    return json({ clientId, authority: `https://login.microsoftonline.com/${env("MS_TENANT") || "common"}`, mail: !!env("SMTP_HOST") });
+    return json({ clientId, authority: `https://login.microsoftonline.com/${env("MS_TENANT") || "common"}`, mail: !!env("SMTP_HOST"), vapidPublicKey: env("VAPID_PUBLIC_KEY") });
   }
 
   const store = storeFactory();
@@ -176,13 +233,34 @@ export default async (req) => {
     if (!ok) { it.tries[user.id] = (it.tries[user.id] || 0) + 1; await store.setJSON("items", all); return json({ ok: false, left: MAX_TRIES - it.tries[user.id] }); }
     it.claimed = { by: user.email, at: new Date().toISOString() };
     await store.setJSON("items", all);
+    const alerts = await load(store, "alerts", []);
+    let solved = false;
+    for (const al of alerts) if (al.userId === user.id && !al.resolved && (al.notified?.includes(it.id) || Shared.match(al, it).score > 0)) { al.resolved = true; solved = true; }
+    if (solved) await store.setJSON("alerts", alerts);
     try {
       await sendMail(user.email, `Pick up your ${it.name}`,
         `Your answer was verified.\n\nCollect "${it.name}" at ${it.keep} with your student ID.\nIt is kept until ${new Date(it.expires).toDateString()}.\n\nUE Campus Finder`);
       if (it.finderEmail && it.finderEmail !== user.email)
         await sendMail(it.finderEmail, `The owner of "${it.name}" was found`, `Thanks for handing it in! The owner verified ownership and will collect it at ${it.keep}.\n\nUE Campus Finder`);
     } catch (e) { console.error("mail failed", e); }
-    return json({ ok: true, keep: it.keep });
+    if (it.finderId !== user.id) await push(store, it.finderId, { title: "🙌 The owner was found", body: `"${it.name}" will be collected at ${it.keep}. Thank you!`, url: "./", tag: "claim-" + it.id }).catch(() => {});
+    return json({ ok: true, keep: it.keep, solved });
+  }
+
+  // ---- phone notifications ----
+  if (parts[0] === "push" && method === "POST") {
+    const no = needUser(); if (no) return no;
+    const sub = body.subscription || {};
+    const endpoint = String(sub.endpoint || body.endpoint || "");
+    if (!/^https:\/\//.test(endpoint) || endpoint.length > 1000) return err(400, "Invalid subscription");
+    const subs = await load(store, "subs", {});
+    const mine = (subs[user.id] || []).filter(s => s.endpoint !== endpoint);
+    if (parts[1] === "subscribe") {
+      if (!sub.keys?.p256dh || !sub.keys?.auth) return err(400, "Invalid subscription");
+      mine.push({ endpoint, keys: { p256dh: String(sub.keys.p256dh), auth: String(sub.keys.auth) } });
+    } else if (parts[1] !== "unsubscribe") return err(404, "Unknown endpoint");
+    subs[user.id] = mine.slice(-5); await store.setJSON("subs", subs);
+    return json({ ok: true, devices: subs[user.id].length });
   }
 
   // ---- alerts (my lost reports) ----
@@ -213,6 +291,12 @@ export default async (req) => {
       await runMatching(req, store, alerts, all, { alertId: al.id });
       const m = Shared.bestMatch(al, all);
       return json({ ...al, match: m ? { item: publicItem(m.item, user), why: m.why } : null }, 201);
+    }
+    if (method === "PATCH" && parts[1]) {
+      const al = alerts.find(a => a.id === parts[1] && a.userId === user.id);
+      if (!al) return err(404, "Not found");
+      al.resolved = !!body.resolved; await store.setJSON("alerts", alerts);
+      return json(al);
     }
     if (method === "DELETE" && parts[1]) {
       const k = alerts.findIndex(a => a.id === parts[1] && a.userId === user.id);
