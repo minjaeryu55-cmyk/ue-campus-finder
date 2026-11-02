@@ -88,3 +88,28 @@ test("allowed email domain", async () => {
   assert.equal((await call("GET", "alerts", OWNER)).status, 403);
   delete process.env.ALLOWED_EMAIL_DOMAINS;
 });
+
+test("found it myself + claim resolve alerts and stop matching", async () => {
+  const a = await call("POST", "alerts", OTHER, { name: "black boot", cat: "Bags/Clothing", colors: ["Black"], zone: "Sports Hall" });
+  assert.ok(a.body.match);
+  const r = await call("PATCH", "alerts/" + a.body.id, OTHER, { resolved: true });
+  assert.equal(r.body.resolved, true);
+  const list = (await call("GET", "alerts", OTHER)).body.find(x => x.id === a.body.id);
+  assert.equal(list.match, null, "resolved alert has no match");
+  assert.equal((await call("PATCH", "alerts/" + a.body.id, OWNER, { resolved: true })).status, 404, "not your alert");
+});
+
+test("daily reminder: once, only when 1-3 days left", async () => {
+  const { runReminders } = await import("../netlify/functions/api.mjs");
+  const a = await call("POST", "alerts", OWNER, { name: "bear keys", cat: "Keys", colors: ["Silver"], zone: "Cafeteria" });
+  assert.equal(a.body.match.item.id, "3");
+  await call("PATCH", "items/3", STAFF, { days: 10 });
+  const n0 = mails.length, p0 = pushes.length;
+  assert.equal(await runReminders(), 0);
+  await call("PATCH", "items/3", STAFF, { days: 2 });
+  assert.equal(await runReminders(), 1);
+  assert.match(mails.at(-1).subject, /left to pick up/); assert.match(mails.at(-1).text, /Opening hours/);
+  assert.equal(pushes.length, p0 + 1);
+  assert.equal(await runReminders(), 0, "only once");
+  assert.equal(mails.length, n0 + 1);
+});

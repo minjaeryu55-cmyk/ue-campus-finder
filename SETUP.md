@@ -93,3 +93,13 @@ npx web-push generate-vapid-keys
 npm install
 npm test
 ```
+
+## 보관 장소 운영시간 바꾸기
+
+각 보관 장소의 위치와 운영시간은 `shared.js`의 `PLACES`에 있습니다. 지금 값은 **예시**이니 실제 시간으로 바꿔 주세요.
+(요일 숫자: 0=일, 1=월 … 6=토)
+
+## 보관기간 마감 리마인더
+
+`netlify/functions/reminders.mjs`가 Netlify에서 **하루 한 번 자동 실행**됩니다.
+매칭된 물건의 보관기간이 3일 이하로 남으면 주인에게 이메일과 휴대폰 알림을 한 번 보냅니다. 따로 설정할 것은 없습니다.

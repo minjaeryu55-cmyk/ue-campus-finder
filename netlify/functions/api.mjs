@@ -58,7 +58,7 @@ const publicItem = (i, u) => {
   return { ...rest, canEdit: !!u && (u.admin || u.id === finderId) };
 };
 
-function appUrl(req) { return env("APP_URL") || new URL(req.url).origin; }
+function appUrl(req) { return env("APP_URL") || env("URL") || (req ? new URL(req.url).origin : ""); }
 
 async function sendMail(to, subject, text) {
   if (mailer) return mailer({ to, subject, text });
@@ -97,7 +97,7 @@ Something similar to the item you reported ("${alert.name}") has been handed in:
 
   ${item.name}${item.colors?.length ? " (" + item.colors.join(", ") + ")" : ""}
   Found at: ${item.zone}
-  Stored at: ${item.keep}
+  Stored at: ${item.keep}${Shared.PLACES[item.keep] ? "\n  Where: " + Shared.PLACES[item.keep].where + "\n  Opening hours: " + Shared.hoursText(item.keep) : ""}
   Kept for: ${left} more day(s)
 
 Open the app to check it and answer the ownership question:
@@ -120,6 +120,41 @@ async function runMatching(req, store, alerts, allItems, only) {
     try { await push(store, al.userId, { title: "🔔 Possible match: " + m.item.name, body: `Now at ${m.item.keep}. Tap to check it.`, url: "./#item=" + m.item.id, tag: "match-" + al.id }); } catch (e) { console.error("push failed", e); }
   }
   if (changed) await store.setJSON("alerts", alerts);
+}
+
+// Daily: remind owners of a matched, unclaimed item when its storage period ends within 3 days.
+export async function runReminders(store = storeFactory()) {
+  const alerts = await load(store, "alerts", []);
+  const all = await items(store);
+  let sent = 0;
+  for (const al of alerts) {
+    const m = Shared.bestMatch(al, all);
+    if (!m) continue;
+    const left = Shared.daysLeft(m.item.expires);
+    al.reminded = al.reminded || [];
+    if (left < 1 || left > 3 || al.reminded.includes(m.item.id)) continue;
+    al.reminded.push(m.item.id); sent++;
+    const when = new Date(m.item.expires).toDateString();
+    try {
+      await sendMail(al.email, `Only ${left} day(s) left to pick up "${m.item.name}"`,
+`Hi ${al.ownerName || ""},
+
+The item that matches your report "${al.name}" is only kept until ${when}:
+
+  ${m.item.name} – ${m.item.keep}${Shared.PLACES[m.item.keep] ? "\n  Opening hours: " + Shared.hoursText(m.item.keep) : ""}
+
+After that it moves to the central office or is discarded.
+If it is yours, open the app and answer the ownership question:
+${appUrl()}/#item=${m.item.id}
+
+If you already found your item, open Alerts and tap "I found it".
+
+UE Campus Finder`);
+    } catch (e) { console.error("mail failed", e); }
+    await push(store, al.userId, { title: `⏳ ${left} day${left > 1 ? "s" : ""} left: ${m.item.name}`, body: `Pick it up at ${m.item.keep} before ${when}.`, url: "./#item=" + m.item.id, tag: "remind-" + al.id }).catch(() => {});
+  }
+  if (sent) await store.setJSON("alerts", alerts);
+  return sent;
 }
 
 export default async (req) => {
@@ -198,6 +233,10 @@ export default async (req) => {
     if (!ok) { it.tries[user.id] = (it.tries[user.id] || 0) + 1; await store.setJSON("items", all); return json({ ok: false, left: MAX_TRIES - it.tries[user.id] }); }
     it.claimed = { by: user.email, at: new Date().toISOString() };
     await store.setJSON("items", all);
+    const alerts = await load(store, "alerts", []);
+    let solved = false;
+    for (const al of alerts) if (al.userId === user.id && !al.resolved && (al.notified?.includes(it.id) || Shared.match(al, it).score > 0)) { al.resolved = true; solved = true; }
+    if (solved) await store.setJSON("alerts", alerts);
     try {
       await sendMail(user.email, `Pick up your ${it.name}`,
         `Your answer was verified.\n\nCollect "${it.name}" at ${it.keep} with your student ID.\nIt is kept until ${new Date(it.expires).toDateString()}.\n\nUE Campus Finder`);
@@ -205,7 +244,7 @@ export default async (req) => {
         await sendMail(it.finderEmail, `The owner of "${it.name}" was found`, `Thanks for handing it in! The owner verified ownership and will collect it at ${it.keep}.\n\nUE Campus Finder`);
     } catch (e) { console.error("mail failed", e); }
     if (it.finderId !== user.id) await push(store, it.finderId, { title: "🙌 The owner was found", body: `"${it.name}" will be collected at ${it.keep}. Thank you!`, url: "./", tag: "claim-" + it.id }).catch(() => {});
-    return json({ ok: true, keep: it.keep });
+    return json({ ok: true, keep: it.keep, solved });
   }
 
   // ---- phone notifications ----
@@ -252,6 +291,12 @@ export default async (req) => {
       await runMatching(req, store, alerts, all, { alertId: al.id });
       const m = Shared.bestMatch(al, all);
       return json({ ...al, match: m ? { item: publicItem(m.item, user), why: m.why } : null }, 201);
+    }
+    if (method === "PATCH" && parts[1]) {
+      const al = alerts.find(a => a.id === parts[1] && a.userId === user.id);
+      if (!al) return err(404, "Not found");
+      al.resolved = !!body.resolved; await store.setJSON("alerts", alerts);
+      return json(al);
     }
     if (method === "DELETE" && parts[1]) {
       const k = alerts.findIndex(a => a.id === parts[1] && a.userId === user.id);
